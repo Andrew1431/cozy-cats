@@ -21,6 +21,8 @@ public class CatItem : GrabbableObject
     private readonly NetworkVariable<byte> netPose = new NetworkVariable<byte>(PoseLoaf);
     // Host-resolved name, plus colours for config-defined special cats ("Name|FUR|EYE|Label").
     private readonly NetworkVariable<FixedString128Bytes> netIdentity = new NetworkVariable<FixedString128Bytes>();
+    // Set the first time the cat reaches the ship, so the rescue bounty is paid once per cat.
+    private readonly NetworkVariable<bool> netRescued = new NetworkVariable<bool>(false);
 
     private Animator animator;
     private AudioSource audioSource;
@@ -45,10 +47,13 @@ public class CatItem : GrabbableObject
     public Vector3 HeldPivot => new Vector3(0f, 0.2f * modelBaseScale.y * size, 0f);
     private bool visualsReady, hasMeowTrigger;
     private int pendingSeed;
+    private bool loadedFromSave;
 
     private float poseTimer, blinkTimer, twitchTimer, ambientMeowTimer, meowCooldown;
 
     public string CatName { get; private set; } = "your cat";
+    // Bounty shown by the "collected" HUD box; only set on the cat that was just rescued.
+    public int PendingBountyDisplay { get; set; }
 
     // LethalLib prefabs are HideAndDontSave and clones inherit that, which hides them from FindObjectsOfType
     // (so vanilla ship saving, end-of-round cleanup and the debug finder would never see cats).
@@ -75,6 +80,8 @@ public class CatItem : GrabbableObject
         {
             if (netSeed.Value == 0) netSeed.Value = pendingSeed != 0 ? pendingSeed : CatLooks.NewSeed();
             netIdentity.Value = new FixedString128Bytes(CatLooks.ResolveIdentity(netSeed.Value));
+            // Only ship items are saved, so a loaded cat was already rescued.
+            if (loadedFromSave) netRescued.Value = true;
         }
         netSeed.OnValueChanged += OnSeedChanged;
         netIdentity.OnValueChanged += OnIdentityChanged;
@@ -298,6 +305,47 @@ public class CatItem : GrabbableObject
         hasHitGround = true;
     }
 
+    // Runs on every client whose SetItemInElevator saw the cat enter the ship for the first time this round.
+    public override void OnBroughtToShip()
+    {
+        base.OnBroughtToShip();
+        if (netRescued.Value) return;
+        if (IsServer) TryRescue();
+        else RescueServerRpc();
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void RescueServerRpc() => TryRescue();
+
+    private void TryRescue()
+    {
+        if (netRescued.Value || StartOfRound.Instance.inShipPhase || !InShip()) return;
+        netRescued.Value = true;
+        int bounty = Plugin.Cfg.RescueBounty.Value;
+        if (bounty <= 0) return;
+        var terminal = FindObjectOfType<Terminal>();
+        if (terminal == null) return;
+        terminal.groupCredits += bounty;
+        terminal.SyncGroupCreditsClientRpc(terminal.groupCredits, terminal.numberOfItemsInDropship);
+        Plugin.Log.LogInfo($"{CatName} rescued: +${bounty} (credits now {terminal.groupCredits})");
+        RescuedClientRpc(bounty);
+    }
+
+    // A client may report the rescue before the host has marked the cat as in the ship, so also check where it is.
+    private bool InShip()
+    {
+        if (isInShipRoom || (playerHeldBy != null && playerHeldBy.isInHangarShipRoom)) return true;
+        var bounds = StartOfRound.Instance.shipInnerRoomBounds.bounds;
+        return bounds.Contains(transform.position);
+    }
+
+    [ClientRpc]
+    private void RescuedClientRpc(int bounty)
+    {
+        PendingBountyDisplay = bounty;
+        HUDManager.Instance?.AddNewScrapFoundToDisplay(this);
+    }
+
     public override void GrabItem()
     {
         base.GrabItem();
@@ -321,6 +369,7 @@ public class CatItem : GrabbableObject
     {
         base.LoadItemSaveData(saveData);
         pendingSeed = saveData & CatLooks.SeedMask;
+        loadedFromSave = true;
         float yaw = ((saveData >> CatLooks.SeedBits) & 0xFF) * 2f;
         floorYRot = Mathf.RoundToInt(Mathf.Repeat(yaw - 90f - itemProperties.floorYOffset, 360f));
     }

@@ -1,8 +1,8 @@
 {
   "name": "CozyCats",
-  "version_number": "1.0.0",
+  "version_number": "1.1.0",
   "website_url": "https://github.com/Andrew1431/cozy-cats",
-  "description": "Rescue adorable low-poly cats hiding in the facility and bring them home to your ship. They meow, purr in your arms, and can't be sold. Monsters can't hear them. Everyone needs the mod.",
+  "description": "Rescue adorable low-poly cats hiding in the facility and bring them home to your ship. They meow, purr in your arms, pay a bounty when rescued, and can't be sold. Monsters can't hear them. Everyone needs the mod.",
   "dependencies": [
     "BepInEx-BepInExPack-5.4.2100",
     "Evaisa-LethalLib-1.2.0"

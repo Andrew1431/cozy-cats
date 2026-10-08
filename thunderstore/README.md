@@ -6,7 +6,8 @@ Cats are hiding in the facility. Find them, scoop them up, and bring them home t
 - **Cozy, not chaotic**: cats sit, loaf, idle, blink and twitch their ears. Pick one up and it rolls over in your arms
   with its paws in the air and purrs quietly.
 - **Meow on demand**: press LMB while holding a cat. Set down, they'll occasionally meow on their own.
-- **Not for sale**: cats are worth nothing and the Company counter refuses them. Keep them on the ship as long as
+- **Rescue bounty**: the first time a cat makes it into the ship, the crew is paid $100 on the spot.
+- **Not for sale**: cats have no scrap value and the Company counter refuses them. Keep them on the ship as long as
   you're employed. They're lost when you're fired.
 - **Never your downfall**: monsters can't hear cats, can't pick them up, and cats never make noise that draws
   attention. They survive a crew wipe like any other non-scrap item.
@@ -25,9 +26,10 @@ Everyone in the lobby needs the mod.
 | Spawning | ExtraCatChance | 0.25 | Chance for each additional cat after the first. |
 | Visuals | ModelScale | 1.0 | Size multiplier for every cat. |
 | Cats | SpecialCats | see below | Your own named cats. |
+| Rewards | RescueBounty | 100 | Credits paid once per cat when it first reaches the ship (0-1000, 0 turns it off). |
 | Sounds | AmbientMeows | true | Cats that are set down meow softly every few minutes. |
 
-Spawning and special cats follow the host's config.
+Spawning, bounties and special cats follow the host's config.
 
 ### Your own cats
 

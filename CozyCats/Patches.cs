@@ -22,6 +22,26 @@ internal static class Patches
         return false;
     }
 
+    // Reuse the vanilla "X collected! Value: $N" box for rescued cats, relabelled with their name and bounty.
+    [HarmonyPatch(typeof(HUDManager), nameof(HUDManager.DisplayNewScrapFound))]
+    [HarmonyPrefix]
+    private static void BeforeDisplayScrap(HUDManager __instance, int ___nextBoxIndex, out (CatItem cat, int box) __state)
+    {
+        __state = default;
+        if (__instance.itemsToBeDisplayed.Count > 0 && __instance.itemsToBeDisplayed[0] is CatItem cat)
+            __state = (cat, ___nextBoxIndex);
+    }
+
+    [HarmonyPatch(typeof(HUDManager), nameof(HUDManager.DisplayNewScrapFound))]
+    [HarmonyPostfix]
+    private static void AfterDisplayScrap(HUDManager __instance, (CatItem cat, int box) __state)
+    {
+        if (__state.cat == null) return;
+        var box = __instance.ScrapItemBoxes[__state.box];
+        box.headerText.text = $"{__state.cat.CatName} rescued!";
+        box.valueText.text = $"Bounty: ${__state.cat.PendingBountyDisplay}";
+    }
+
     [HarmonyPatch(typeof(RoundManager), nameof(RoundManager.SpawnScrapInLevel))]
     [HarmonyPostfix]
     private static void SpawnCats(RoundManager __instance)
