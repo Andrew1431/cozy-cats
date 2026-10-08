@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Sdk Name="Evaisa.NetcodePatcher.MSBuild" Version="4.5.0" />
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>CozyCats</AssemblyName>
+    <RootNamespace>CozyCats</RootNamespace>
+    <Product>CozyCats</Product>
+    <Version>1.0.0</Version>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugType>embedded</DebugType>
+    <RestoreAdditionalProjectSources>https://nuget.bepinex.dev/v3/index.json</RestoreAdditionalProjectSources>
+
+    <!-- Local paths; override on the command line if yours differ -->
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Lethal Company</GameDir>
+    <ManagedDir>$(GameDir)\Lethal Company_Data\Managed</ManagedDir>
+    <!-- LC v81 ships Unity 2022.3.62 + Netcode 1.12.x; the patcher defaults to 1.5.2, whose RPC registration v81 ignores -->
+    <NetcodePatcherUnityVersion>2022.3.62</NetcodePatcherUnityVersion>
+    <NetcodePatcherNetcodeVersion>1.12.0</NetcodePatcherNetcodeVersion>
+    <ProfileDir Condition="'$(ProfileDir)' == ''">$(APPDATA)\r2modmanPlus-local\LethalCompany\profiles\CatDev</ProfileDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" PrivateAssets="all" />
+    <PackageReference Include="Evaisa.LethalLib" Version="1.2.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="$(ManagedDir)\Assembly-CSharp.dll" Private="false" />
+    <Reference Include="$(ManagedDir)\Unity.Netcode.Runtime.dll" Private="false" />
+    <Reference Include="$(ManagedDir)\Unity.InputSystem.dll" Private="false" />
+    <Reference Include="$(ManagedDir)\Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="$(ManagedDir)\Unity.Collections.dll" Private="false" />
+    <Reference Include="$(ManagedDir)\UnityEngine*.dll" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <NetcodePatch Include="$(TargetPath)" />
+  </ItemGroup>
+
+  <!-- Debug builds copy the plugin + asset bundle into the dev r2modman profile; Release is packaged by package.ps1 -->
+  <Target Name="DeployToProfile" AfterTargets="NetcodePatch" Condition="'$(Configuration)' == 'Debug' And Exists('$(ProfileDir)')">
+    <PropertyGroup>
+      <PluginOut>$(ProfileDir)\BepInEx\plugins\CozyCats</PluginOut>
+    </PropertyGroup>
+    <MakeDir Directories="$(PluginOut)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginOut)" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\unity\CozyCatsAssets\AssetBundles\cozycats" DestinationFolder="$(PluginOut)" Condition="Exists('$(MSBuildThisFileDirectory)..\unity\CozyCatsAssets\AssetBundles\cozycats')" />
+    <Message Importance="high" Text="Deployed to $(PluginOut)" />
+  </Target>
+
+</Project>

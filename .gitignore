@@ -1,0 +1,17 @@
+﻿bin/
+obj/
+*.user
+.vs/
+art/export/
+art/*.blend1
+unity/*/Library/
+unity/*/Temp/
+unity/*/Logs/
+unity/*/UserSettings/
+unity/*/obj/
+unity/*/AssetBundles/
+unity/*/*.csproj
+unity/*/*.sln
+unity/*.log
+art/sound_candidates/*.mp3
+dist/
