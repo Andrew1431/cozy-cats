@@ -69,7 +69,12 @@ internal readonly struct CatLooks
     public readonly string FurName;
     public readonly Color Fur;
     public readonly Color Eye;
-    public readonly float Size;
+    public readonly float SizeRoll;
+    public float Size => SizeAt(SizeRoll);
+
+    // Debug builds tweak these live (DebugKeys: U/J and I/K).
+    public static float SizeMin = 1.15f, SizeMax = 2.05f;
+    public static float SizeAt(float roll) => Mathf.Lerp(SizeMin, SizeMax, roll);
     public readonly int SoundRoll;
 
     // The rng draw order is fixed (fur, eye, name, size, sound) so the name pool's size never shifts other traits.
@@ -81,7 +86,7 @@ internal readonly struct CatLooks
         Fur = fur.color;
         Eye = Eyes[rng.Next(Eyes.Length)].color;
         Name = BuiltInNames[rng.Next(BuiltInNames.Length)];
-        Size = 1.25f + (float)rng.NextDouble() * 0.2f;
+        SizeRoll = (float)rng.NextDouble();
         SoundRoll = rng.Next();
 
         if (string.IsNullOrEmpty(identity)) return;

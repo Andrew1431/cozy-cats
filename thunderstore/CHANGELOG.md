@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1
+
+- Cats vary a lot more in size, from little ones to proper chonks. Existing cats keep their place in the range.
+
 ## 2.0.0
 
 Cats move now!

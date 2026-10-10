@@ -17,7 +17,7 @@ internal class DebugKeys : MonoBehaviour
         var go = new GameObject("CozyCats.DebugKeys") { hideFlags = HideFlags.HideAndDontSave };
         DontDestroyOnLoad(go);
         go.AddComponent<DebugKeys>();
-        Plugin.Log.LogWarning("Debug keys: F4 bring everyone to you, F5 toggle god mode + infinite stamina (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). While holding a cat: arrows move left/right/up/down, " +
+        Plugin.Log.LogWarning("Debug keys: F4 bring everyone to you, F5 toggle god mode + infinite stamina (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). Not holding a cat: U/J smallest size up/down, I/K largest size up/down. While holding a cat: arrows move left/right/up/down, " +
                               "PgUp/PgDn move away/closer, I/K pitch, J/L yaw, U/O roll, hold Alt for fine steps, " +
                               "F9 print+copy hold pose, F10 reset hold pose.");
     }
@@ -55,8 +55,12 @@ internal class DebugKeys : MonoBehaviour
         }
 
         var player = GameNetworkManager.Instance?.localPlayerController;
-        if (player == null || !(player.currentlyHeldObjectServer is CatItem cat)) return;
-        if (player.isTypingChat || player.inTerminalMenu) return;
+        if (player == null || player.isTypingChat || player.inTerminalMenu) return;
+        if (!(player.currentlyHeldObjectServer is CatItem cat))
+        {
+            SizeKeys(kb);
+            return;
+        }
 
         bool fine = kb.altKey.isPressed;
         float step = fine ? 0.0025f : 0.01f;
@@ -211,6 +215,23 @@ internal class DebugKeys : MonoBehaviour
         if (UnityEngine.AI.NavMesh.SamplePosition(dest, out var hit, 1.5f, UnityEngine.AI.NavMesh.AllAreas)) dest = hit.position + Vector3.up * 0.2f;
         player.TeleportPlayer(dest);
         Plugin.Log.LogInfo($"Teleported to {nearest.CatName} at {nearest.transform.position}");
+    }
+
+    // Not holding a cat: U/J raise/lower the smallest size, I/K the largest. This PC only; every cat rescales live.
+    private static void SizeKeys(Keyboard kb)
+    {
+        float min = CatLooks.SizeMin, max = CatLooks.SizeMax;
+        if (kb.uKey.wasPressedThisFrame) min += 0.1f;
+        if (kb.jKey.wasPressedThisFrame) min -= 0.1f;
+        if (kb.iKey.wasPressedThisFrame) max += 0.1f;
+        if (kb.kKey.wasPressedThisFrame) max -= 0.1f;
+        if (min == CatLooks.SizeMin && max == CatLooks.SizeMax) return;
+        CatLooks.SizeMin = Mathf.Clamp(min, 0.1f, 5f);
+        CatLooks.SizeMax = Mathf.Clamp(max, 0.1f, 5f);
+        foreach (var c in FindObjectsOfType<CatItem>()) c.ApplySize();
+        string text = $"Smallest {CatLooks.SizeMin:0.00}, largest {CatLooks.SizeMax:0.00}";
+        HUDManager.Instance?.DisplayTip("Cat sizes", text);
+        Plugin.Log.LogInfo($"Cat sizes: {text}");
     }
 
     // ---- F4: bring every player to whoever pressed it (client -> host -> everyone) ----

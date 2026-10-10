@@ -33,7 +33,7 @@ public partial class CatItem : GrabbableObject
     private BoxCollider bodyCollider;
     private Vector3 modelBaseScale, colliderBaseCenter, colliderBaseSize, modelBasePos;
     private Quaternion modelBaseRot;
-    private float size = 1f;
+    private float size = 1f, sizeRoll = 0.5f;
     private AudioClip grabClip, dropClip, purrClip;
     private AudioSource purrSource;
 
@@ -161,13 +161,24 @@ public partial class CatItem : GrabbableObject
         return m;
     }
 
+    internal void ApplySize()
+    {
+        size = CatLooks.SizeAt(sizeRoll);
+        if (model != null) model.localScale = modelBaseScale * size;
+        if (bodyCollider != null)
+        {
+            bodyCollider.center = colliderBaseCenter * size;
+            bodyCollider.size = colliderBaseSize * size;
+        }
+    }
+
     private void ApplyLooks(int seed)
     {
         if (seed == 0) return;
         EnsureVisuals();
         var looks = new CatLooks(seed, netIdentity.Value.ToString());
         CatName = looks.Name;
-        size = looks.Size;
+        sizeRoll = looks.SizeRoll;
 
         var sources = CatRegistry.SoundSources;
         Item soundSource = sources.Length > 0 ? sources[looks.SoundRoll % sources.Length] : null;
@@ -180,12 +191,7 @@ public partial class CatItem : GrabbableObject
             eyeMat.SetColor("_BaseColor", looks.Eye);
             eyeMat.SetColor("_EmissiveColor", looks.Eye * EyeGlow);
         }
-        if (model != null) model.localScale = modelBaseScale * looks.Size;
-        if (bodyCollider != null)
-        {
-            bodyCollider.center = colliderBaseCenter * looks.Size;
-            bodyCollider.size = colliderBaseSize * looks.Size;
-        }
+        ApplySize();
         if (scanNode != null)
         {
             scanNode.headerText = CatName;

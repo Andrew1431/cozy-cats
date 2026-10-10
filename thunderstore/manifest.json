@@ -1,6 +1,6 @@
 {
   "name": "CozyCats",
-  "version_number": "2.0.0",
+  "version_number": "2.0.1",
   "website_url": "https://github.com/Andrew1431/cozy-cats",
   "description": "Rescue skittish low-poly cats hiding in the facility: crouch to coax them close and they'll follow you home to the ship. They meow, purr, pay a bounty when rescued and can't be sold. Monsters can't hear them. Everyone needs the mod.",
   "dependencies": [
