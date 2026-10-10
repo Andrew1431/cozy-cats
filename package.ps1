@@ -8,6 +8,23 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# GitHub release v<version> on the current commit, with this version's CHANGELOG section as notes and the zip attached.
+# Runs after a successful Thunderstore upload; a failure here only warns, since Thunderstore already has the version.
+function Publish-GitHubRelease {
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { Write-Warning 'gh not found; skipped the GitHub release.'; return }
+    $commit = git -C $root rev-parse HEAD
+    if (-not (git -C $root branch -r --contains $commit)) { Write-Warning "HEAD isn't pushed; skipped the GitHub release. Push, then: gh release create v$version"; return }
+    $changelog = Get-Content -Raw (Join-Path $ts 'CHANGELOG.md')
+    $m = [regex]::Match($changelog, "(?ms)^## $([regex]::Escape($version))\s*$\s*(.*?)(?=^## |\z)")
+    $notes = if ($m.Success) { $m.Groups[1].Value.Trim() } else { "CozyCats $version" }
+    $notes += "`n`nAlso on Thunderstore: https://thunderstore.io/c/lethal-company/p/$Team/$($manifest.name)/"
+    $notesFile = Join-Path $root 'dist\release-notes.md'
+    Set-Content -LiteralPath $notesFile -Value $notes -Encoding utf8
+    gh release create "v$version" $zip --repo "$Team/cozy-cats" --target $commit --title "CozyCats $version" --notes-file $notesFile
+    if ($LASTEXITCODE -ne 0) { Write-Warning "GitHub release failed; retry with: gh release create v$version" }
+    Remove-Item -LiteralPath $notesFile -ErrorAction SilentlyContinue
+}
 $root = $PSScriptRoot
 $ts = Join-Path $root 'thunderstore'
 
@@ -49,5 +66,6 @@ if ($Upload) {
     tcli publish --file $zip --config-path (Join-Path $ts 'thunderstore.toml')
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Write-Host "Uploaded ${version}: https://thunderstore.io/c/lethal-company/p/$Team/$($manifest.name)/"
+    Publish-GitHubRelease
 }
 exit 0
