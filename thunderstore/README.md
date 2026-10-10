@@ -21,9 +21,7 @@ Everyone in the lobby needs the mod.
 
 | Section | Key | Default | What it does |
 |---|---|---|---|
-| Spawning | MaxCatsPerMoon | 2 | Most cats that can show up in one facility (0-5). |
-| Spawning | ChanceFirstCat | 1.0 | Chance that at least one cat is hiding in the facility. |
-| Spawning | ChanceExtraCat | 0.8 | Chance for each additional cat after the first. |
+| Spawning | CatChances | 1, 0.8 | Chance for each cat, rolled in order until one misses. `1, 1, 1` is always three cats; `1, 0.8, 0.6, 0.4` is up to four, each less likely. |
 | Visuals | ModelScale | 1.0 | Size multiplier for every cat. |
 | Cats | SpecialCats | see below | Your own named cats. |
 | Rewards | RescueBounty | 100 | Credits paid once per cat when it first reaches the ship (0-1000, 0 turns it off). |

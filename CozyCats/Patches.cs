@@ -55,10 +55,10 @@ internal static class Patches
         var cfg = Plugin.Cfg;
 
         int count = 0;
-        if (cfg.MaxCatsPerMoon.Value > 0 && Random.value < cfg.FirstCatChance.Value)
+        foreach (float chance in cfg.ParseCatChances())
         {
-            count = 1;
-            while (count < cfg.MaxCatsPerMoon.Value && Random.value < cfg.SecondCatChance.Value) count++;
+            if (Random.value >= chance) break;
+            count++;
         }
         if (count == 0) return;
 
