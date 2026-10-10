@@ -40,6 +40,8 @@ public partial class CatItem : GrabbableObject
     private const float HeldMeowVolume = 0.27f;
     private const float AmbientMeowVolume = 0.18f;
     private const float HeldPurrVolume = 0.156f;
+    // Eyeshine: a faint glow in the iris colour so cats are spottable in the dark. Emissive only, it lights nothing.
+    private const float EyeGlow = 0.6f;
 
     // Extra pose applied to the model while held: rotate about the body's centre, then shift. Prefab space.
     public static Quaternion HeldRot = Quaternion.Euler(312.4f, 12.8f, 321.4f);
@@ -173,7 +175,11 @@ public partial class CatItem : GrabbableObject
         dropClip = soundSource?.dropSFX;
         purrClip = CatAssets.Purrs.Length > 0 ? CatAssets.Purrs[(looks.SoundRoll / 7) % CatAssets.Purrs.Length] : null;
         if (furMat != null) furMat.SetColor("_BaseColor", looks.Fur);
-        if (eyeMat != null) eyeMat.SetColor("_BaseColor", looks.Eye);
+        if (eyeMat != null)
+        {
+            eyeMat.SetColor("_BaseColor", looks.Eye);
+            eyeMat.SetColor("_EmissiveColor", looks.Eye * EyeGlow);
+        }
         if (model != null) model.localScale = modelBaseScale * looks.Size;
         if (bodyCollider != null)
         {

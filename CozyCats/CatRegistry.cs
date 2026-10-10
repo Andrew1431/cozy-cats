@@ -22,6 +22,8 @@ internal static class CatRegistry
         float scale = Plugin.Cfg.ModelScale.Value;
 
         Prefab = NetworkPrefabs.CreateNetworkPrefab("CozyCat");
+        // Like vanilla items: every client reparents props to the ship/props container itself, which NGO would reject.
+        Prefab.GetComponent<Unity.Netcode.NetworkObject>().AutoObjectParentSync = false;
         Prefab.tag = "PhysicsProp";
         Prefab.layer = PropsLayer;
 

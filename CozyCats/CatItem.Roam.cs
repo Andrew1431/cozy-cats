@@ -16,6 +16,9 @@ public partial class CatItem
     private const float CoaxRange = 12f, CoaxStop = 1.0f, CalmDownAfter = 20f;
     // Faster than a walking player and close to a sprint: chasing works sometimes, crouching works every time.
     private const float WalkSpeed = 0.55f, RunSpeed = 7.5f;
+    // Tamed cats trail whoever last put them down: walk when a little behind, run when left well behind.
+    private const float FollowWalkSpeed = 0.9f, FollowRunSpeed = 6f;
+    private const float FollowStop = 1.6f, FollowStart = 2.6f, FollowRunStart = 8f, FollowRunStop = 4f, FollowDoorRange = 12f, FollowCatchUp = 30f, FollowStuckTime = 4f;
     // Ground speed each clip covers at playback speed 1 for a size-1 cat, measured from the paw sweep in Blender.
     private const float WalkClipSpeed = 0.13f, RunClipSpeed = 1.0f;
 
@@ -25,6 +28,13 @@ public partial class CatItem
     private Mood mood = Mood.Calm;
     private float brainTimer, calmTimer, coaxRepathTimer;
     private NavMeshPath navPath;
+
+    private PlayerControllerB followTarget;
+    private bool followRunning;
+    private float followRepath, lastFollowDist = float.MaxValue;
+    private Vector3 lastFollowDest;
+    private Vector3 stuckAnchor;
+    private float stuckTimer;
 
     private Vector3[] path;
     private int pathIndex;
@@ -44,7 +54,7 @@ public partial class CatItem
     private void UpdateMovement(float dt)
     {
         if (!IsMoving) return;
-        if (isHeld || isHeldByEnemy || isInShipRoom)
+        if (isHeld || isHeldByEnemy)
         {
             path = null;
             return;
@@ -55,6 +65,13 @@ public partial class CatItem
         {
             Vector3 target = path[pathIndex];
             float d = Vector3.Distance(pos, target);
+            if (IsSteep(target - pos))
+            {
+                // Ladders and ledges are navmesh links: hop straight to the other end like a cat would.
+                pos = target;
+                pathIndex++;
+                continue;
+            }
             if (d <= step)
             {
                 pos = target;
@@ -76,10 +93,22 @@ public partial class CatItem
         if (pathIndex >= path.Length) path = null;
     }
 
+    private static bool IsSteep(Vector3 seg)
+    {
+        float rise = Mathf.Abs(seg.y), run = new Vector2(seg.x, seg.z).magnitude;
+        return rise > 0.6f && rise > run * 1.2f;
+    }
+
     [ClientRpc]
     private void MoveClientRpc(Vector3[] corners, float speed, byte newGait)
     {
         if (isHeld || corners == null || corners.Length < 2) return;
+        // Dropped on the ship's deck but outside the room: it was riding the ship; stop riding it once it walks off.
+        if (!isInShipRoom && transform.parent == StartOfRound.Instance.elevatorTransform)
+        {
+            transform.SetParent(StartOfRound.Instance.propsContainer, worldPositionStays: true);
+            isInElevator = false;
+        }
         // Corner 0 is the host's position; each client starts from wherever it has the cat, which is close enough.
         path = corners;
         pathIndex = 1;
@@ -101,8 +130,14 @@ public partial class CatItem
 
     private void UpdateBrain(float dt)
     {
-        if (isHeld && !netTamed.Value) netTamed.Value = true;
-        if (netTamed.Value || netRescued.Value || isHeld || isHeldByEnemy || isInShipRoom || isInElevator) return;
+        if (isHeld)
+        {
+            if (!netTamed.Value) netTamed.Value = true;
+            if (playerHeldBy != null) followTarget = playerHeldBy;
+            return;
+        }
+        if (isHeldByEnemy || netRescued.Value) return;
+        if (isInShipRoom && !IsMoving) return;
         if (!reachedFloorTarget && !IsMoving) return;
         var sor = StartOfRound.Instance;
         if (sor == null || sor.inShipPhase || !sor.shipHasLanded) return;
@@ -111,6 +146,13 @@ public partial class CatItem
         brainTimer -= dt;
         if (brainTimer > 0f) return;
         brainTimer = tick;
+
+        // Rescued (brought aboard) cats are home for good; following is only for taking a cat home.
+        if (netTamed.Value)
+        {
+            Follow(tick);
+            return;
+        }
 
         Vector3 eye = transform.position + Vector3.up * 0.3f;
         PlayerControllerB threat = null, friend = null;
@@ -180,6 +222,169 @@ public partial class CatItem
         }
     }
 
+    private void Follow(float tick)
+    {
+        var sor = StartOfRound.Instance;
+        // Walked in on its own: settle into the ship exactly as if it had been dropped there.
+        if (sor.shipInnerRoomBounds.bounds.Contains(transform.position))
+        {
+            followTarget = null;
+            netPose.Value = PoseSit;
+            ArrivedInShipClientRpc();
+            SettleInShip();
+            return;
+        }
+
+        var t = followTarget;
+        if (t == null || !t.isPlayerControlled || t.isPlayerDead)
+        {
+            followTarget = null;
+            if (IsMoving) StopHere(PoseSit);
+            return;
+        }
+        if (t.isInHangarShipRoom && !t.isInsideFactory && !isInFactory)
+        {
+            BoardShip(t);
+            return;
+        }
+
+        // They went through an entrance. If we were close behind, pop through with them; otherwise we've lost them.
+        if (t.isInsideFactory != isInFactory)
+        {
+            if (lastFollowDist < FollowDoorRange) HopTo(t, "entrance");
+            else
+            {
+                followTarget = null;
+                if (IsMoving) StopHere(PoseSit);
+            }
+            return;
+        }
+
+        float d = Vector3.Distance(transform.position, t.transform.position);
+        lastFollowDist = d;
+        // Left far behind, or not getting anywhere (ladders, the ship's step, odd stairs): catch up instead of getting lost.
+        if (d > FollowStart + 1f)
+        {
+            if (Vector3.Distance(transform.position, stuckAnchor) > 0.4f)
+            {
+                stuckAnchor = transform.position;
+                stuckTimer = 0f;
+            }
+            else stuckTimer += tick;
+        }
+        else stuckTimer = 0f;
+        if (d > FollowCatchUp || stuckTimer > FollowStuckTime)
+        {
+            HopTo(t, d > FollowCatchUp ? $"{d:0}m behind" : "stuck");
+            stuckTimer = 0f;
+            return;
+        }
+        if (!followRunning && d > FollowRunStart) followRunning = true;
+        else if (followRunning && d < FollowRunStop) followRunning = false;
+
+        if (d < FollowStop)
+        {
+            if (IsMoving) FaceAndStop(t.transform.position, PoseSit);
+            return;
+        }
+        if (!IsMoving && d < FollowStart) return;
+
+        byte g = followRunning ? PoseRun : PoseWalk;
+        Vector3 dest = t.transform.position + FollowOffset(t);
+        // The player may be mid-jump or standing on a crate: aim for the floor near them.
+        if (NavMesh.SamplePosition(dest, out var floor, 3f, NavMesh.AllAreas)) dest = floor.position;
+        followRepath -= tick;
+        bool stale = followRepath <= 0f && Vector3.Distance(dest, lastFollowDest) > 0.75f;
+        if (IsMoving && gait == g && !stale) return;
+        followRepath = 0.5f;
+        lastFollowDest = dest;
+        // No route (the ship's floor, a gap) leaves the cat standing still, and the stuck timer hops it over.
+        SendPath(dest, followRunning ? FollowRunSpeed : FollowWalkSpeed, g, maxLength: 80f);
+    }
+
+    // The ship's floor isn't on the navmesh, so boarding is scripted: hop in beside the player, then stroll to a spot.
+    private void BoardShip(PlayerControllerB t)
+    {
+        var b = StartOfRound.Instance.shipInnerRoomBounds.bounds;
+        HopTo(t, "boarding");
+        if (!b.Contains(transform.position + Vector3.up * 0.1f))
+        {
+            // The spot behind them was outside the room (they're just through the door): land at their feet instead.
+            TeleportClientRpc(t.transform.position, t.transform.eulerAngles.y + 180f, false);
+        }
+        followTarget = null;
+        netPose.Value = PoseSit;
+        ArrivedInShipClientRpc();
+        SettleInShip();
+    }
+
+    // Walk a few metres in a straight line to a random clear patch of ship floor so cats don't crowd the door.
+    private void SettleInShip()
+    {
+        var sor = StartOfRound.Instance;
+        var b = sor.shipInnerRoomBounds.bounds;
+        Vector3 from = transform.position;
+        for (int i = 0; i < 10; i++)
+        {
+            var p = Vector3.Lerp(b.center, new Vector3(Random.Range(b.min.x, b.max.x), 0f, Random.Range(b.min.z, b.max.z)), 0.7f);
+            p.y = from.y + 1f;
+            if (!Physics.Raycast(p, Vector3.down, out var hit, 2f, sor.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore)) continue;
+            if (Mathf.Abs(hit.point.y - from.y) > 0.3f || Vector3.Distance(hit.point, from) < 1f) continue;
+            if (Physics.Linecast(from + Vector3.up * 0.3f, hit.point + Vector3.up * 0.3f, sor.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore)) continue;
+            netPose.Value = PoseSit;
+            MoveClientRpc(new[] { from, hit.point }, FollowWalkSpeed, PoseWalk);
+            return;
+        }
+    }
+
+    // A spot behind the player, fanned out per cat so several followers don't stack on one point.
+    private Vector3 FollowOffset(PlayerControllerB t)
+    {
+        int seed = netSeed.Value;
+        Vector3 back = Vector3.ProjectOnPlane(-t.transform.forward, Vector3.up).normalized;
+        float angle = (seed % 7 - 3) * 22f;
+        float radius = 1.1f + seed % 3 * 0.35f;
+        return Quaternion.Euler(0f, angle, 0f) * back * radius;
+    }
+
+    private void HopTo(PlayerControllerB t, string reason)
+    {
+#if DEBUG
+        Plugin.Log.LogInfo($"{CatName} hops to {t.playerUsername} ({reason})");
+#endif
+        var sor = StartOfRound.Instance;
+        Vector3 p = t.transform.position + FollowOffset(t) + Vector3.up * 0.5f;
+        p = Physics.Raycast(p, Vector3.down, out var hit, 3f, sor.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore)
+            ? hit.point : t.transform.position;
+        Vector3 look = Vector3.ProjectOnPlane(t.transform.position - p, Vector3.up);
+        float yaw = look.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(look).eulerAngles.y : transform.eulerAngles.y;
+        lastFollowDist = 0f;
+        netPose.Value = PoseSit;
+        TeleportClientRpc(p, yaw, t.isInsideFactory);
+    }
+
+    [ClientRpc]
+    private void TeleportClientRpc(Vector3 position, float yaw, bool inFactory)
+    {
+        path = null;
+        if (isHeld) return;
+        isInFactory = inFactory;
+        transform.position = position;
+        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        targetFloorPosition = transform.localPosition;
+    }
+
+    [ClientRpc]
+    private void ArrivedInShipClientRpc()
+    {
+        path = null;
+        if (isHeld) return;
+        // Same as the game's own drop-in-ship handling: ride with the ship, count as collected (and pay the bounty once).
+        transform.SetParent(StartOfRound.Instance.elevatorTransform, worldPositionStays: true);
+        targetFloorPosition = transform.localPosition;
+        GameNetworkManager.Instance.localPlayerController?.SetItemInElevator(true, true, this);
+    }
+
     // Run to a reachable spot away from every standing player. No leash: crouching is how you catch a cat.
     private bool Flee()
     {
@@ -224,7 +429,7 @@ public partial class CatItem
 
     private static bool IsStanding(PlayerControllerB p) => p != null && p.isPlayerControlled && !p.isPlayerDead && !p.isCrouching;
 
-    private bool SendPath(Vector3 dest, float speed, byte newGait)
+    private bool SendPath(Vector3 dest, float speed, byte newGait, float maxLength = FleeMax * 3f)
     {
         navPath ??= new NavMeshPath();
         if (!NavMesh.SamplePosition(transform.position, out var start, 1.5f, NavMesh.AllAreas)) return false;
@@ -234,13 +439,9 @@ public partial class CatItem
         float length = 0f;
         for (int i = 1; i < corners.Length; i++)
         {
-            Vector3 seg = corners[i] - corners[i - 1];
-            float rise = Mathf.Abs(seg.y), run = new Vector2(seg.x, seg.z).magnitude;
-            // Steeper than any stairs means a jump/drop link between floors; the cat would glide through the floor.
-            if (rise > 0.6f && rise > run * 1.2f) return false;
-            length += seg.magnitude;
+            length += Vector3.Distance(corners[i - 1], corners[i]);
         }
-        if (length > FleeMax * 3f) return false;
+        if (length > maxLength) return false;
         corners[0] = transform.position;
         netPose.Value = PoseSit;
 #if DEBUG
