@@ -16,7 +16,7 @@ internal class DebugKeys : MonoBehaviour
         var go = new GameObject("CozyCats.DebugKeys") { hideFlags = HideFlags.HideAndDontSave };
         DontDestroyOnLoad(go);
         go.AddComponent<DebugKeys>();
-        Plugin.Log.LogWarning("Debug keys: F5 toggle god mode (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). While holding a cat: arrows move left/right/up/down, " +
+        Plugin.Log.LogWarning("Debug keys: F5 toggle god mode + infinite stamina (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). While holding a cat: arrows move left/right/up/down, " +
                               "PgUp/PgDn move away/closer, I/K pitch, J/L yaw, U/O roll, hold Alt for fine steps, " +
                               "F9 print+copy hold pose, F10 reset hold pose.");
     }
@@ -33,6 +33,12 @@ internal class DebugKeys : MonoBehaviour
         }
         // The game's own switch: DamagePlayer and KillPlayer both check it before hurting the local player.
         if (StartOfRound.Instance != null) StartOfRound.Instance.allowLocalPlayerDeath = !godMode;
+        var me = GameNetworkManager.Instance?.localPlayerController;
+        if (godMode && me != null)
+        {
+            me.sprintMeter = 1f;
+            me.isExhausted = false;
+        }
         if (kb.f7Key.wasPressedThisFrame)
         {
             showMarkers = !showMarkers;
