@@ -228,7 +228,7 @@ public partial class CatItem
     {
         var sor = StartOfRound.Instance;
         // Walked in on its own: settle into the ship exactly as if it had been dropped there.
-        if (sor.shipInnerRoomBounds.bounds.Contains(transform.position))
+        if (InShipCore(transform.position))
         {
             followTarget = null;
             netPose.Value = PoseSit;
@@ -244,7 +244,7 @@ public partial class CatItem
             if (IsMoving) StopHere(PoseSit);
             return;
         }
-        if (t.isInHangarShipRoom && !t.isInsideFactory && !isInFactory)
+        if (t.isInHangarShipRoom && InShipCore(t.transform.position) && !t.isInsideFactory && !isInFactory)
         {
             BoardShip(t);
             return;
@@ -313,17 +313,38 @@ public partial class CatItem
     // The ship's floor isn't on the navmesh, so boarding is scripted: hop in beside the player, then stroll to a spot.
     private void BoardShip(PlayerControllerB t)
     {
-        var b = StartOfRound.Instance.shipInnerRoomBounds.bounds;
+        var sor = StartOfRound.Instance;
         HopTo(t, "boarding");
-        if (!b.Contains(transform.position + Vector3.up * 0.1f))
+        if (!InShipCore(transform.position))
         {
-            // The spot behind them was outside the room (they're just through the door): land at their feet instead.
-            TeleportClientRpc(t.transform.position, t.transform.eulerAngles.y + 180f, false);
+            // The spot behind them was outside the room (just through the door, or out on the railing):
+            // land on the floor at the nearest point well inside instead.
+            var core = ShipCore();
+            Vector3 p = core.ClosestPoint(new Vector3(t.transform.position.x, core.center.y, t.transform.position.z));
+            p.y = t.transform.position.y + 1f;
+            p = Physics.Raycast(p, Vector3.down, out var hit, 3f, sor.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore)
+                ? hit.point : new Vector3(p.x, t.transform.position.y, p.z);
+            TeleportClientRpc(p, t.transform.eulerAngles.y + 180f, false);
         }
         followTarget = null;
         netPose.Value = PoseSit;
         ArrivedInShipClientRpc();
         SettleInShip();
+    }
+
+    // The ship room, pulled in from the walls so standing on the outer railing next to it doesn't count as aboard.
+    private static Bounds ShipCore()
+    {
+        var b = StartOfRound.Instance.shipInnerRoomBounds.bounds;
+        b.Expand(new Vector3(-1f, 0f, -1f));
+        return b;
+    }
+
+    private static bool InShipCore(Vector3 pos)
+    {
+        var b = ShipCore();
+        return pos.x > b.min.x && pos.x < b.max.x && pos.z > b.min.z && pos.z < b.max.z
+               && pos.y > b.min.y - 0.5f && pos.y < b.max.y;
     }
 
     // Walk a few metres in a straight line to a random clear patch of ship floor so cats don't crowd the door.

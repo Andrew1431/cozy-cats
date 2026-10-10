@@ -2,7 +2,11 @@
 
 Cats are hiding in the facility. Find them, scoop them up, and bring them home to the ship.
 
-- **Every cat is unique**: random fur and eye colours, a random size and a name you'll see when you scan them.
+- **Skittish**: cats bolt from anyone standing nearby and keep their distance. Crouch and they'll creep up to you.
+- **They follow you home**: once you've picked a cat up, set it down and it trots after you, through the facility
+  doors and all the way back to the ship, where it finds a spot to settle in. Lead a whole parade if you like.
+- **Every cat is unique**: random fur and eye colours, a random size and a name you'll see when you scan them. Their eyes
+  shine faintly in the dark.
 - **Cozy, not chaotic**: cats sit, loaf, idle, blink and twitch their ears. Pick one up and it rolls over in your arms
   with its paws in the air and purrs quietly.
 - **Meow on demand**: press LMB while holding a cat. Set down, they'll occasionally meow on their own.

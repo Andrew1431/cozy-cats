@@ -1,4 +1,5 @@
 #if DEBUG
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -16,7 +17,7 @@ internal class DebugKeys : MonoBehaviour
         var go = new GameObject("CozyCats.DebugKeys") { hideFlags = HideFlags.HideAndDontSave };
         DontDestroyOnLoad(go);
         go.AddComponent<DebugKeys>();
-        Plugin.Log.LogWarning("Debug keys: F5 toggle god mode + infinite stamina (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). While holding a cat: arrows move left/right/up/down, " +
+        Plugin.Log.LogWarning("Debug keys: F4 bring everyone to you, F5 toggle god mode + infinite stamina (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). While holding a cat: arrows move left/right/up/down, " +
                               "PgUp/PgDn move away/closer, I/K pitch, J/L yaw, U/O roll, hold Alt for fine steps, " +
                               "F9 print+copy hold pose, F10 reset hold pose.");
     }
@@ -45,6 +46,8 @@ internal class DebugKeys : MonoBehaviour
             HUDManager.Instance?.DisplayTip("Cat finder", showMarkers ? "On" : "Off");
         }
         if (kb.f6Key.wasPressedThisFrame) StartCoroutine(TeleportToNearestCat());
+        RegisterSummon();
+        if (kb.f4Key.wasPressedThisFrame) RequestSummon();
         if (showMarkers && Time.unscaledTime >= nextCatScan)
         {
             nextCatScan = Time.unscaledTime + 0.5f;
@@ -208,6 +211,96 @@ internal class DebugKeys : MonoBehaviour
         if (UnityEngine.AI.NavMesh.SamplePosition(dest, out var hit, 1.5f, UnityEngine.AI.NavMesh.AllAreas)) dest = hit.position + Vector3.up * 0.2f;
         player.TeleportPlayer(dest);
         Plugin.Log.LogInfo($"Teleported to {nearest.CatName} at {nearest.transform.position}");
+    }
+
+    // ---- F4: bring every player to whoever pressed it (client -> host -> everyone) ----
+
+    private const string SummonRequestMsg = "CozyCats.SummonRequest", SummonMsg = "CozyCats.Summon";
+    private CustomMessagingManager summonRegisteredOn;
+
+    // The messaging manager is new for every hosted/joined session, so register again whenever it changes.
+    private void RegisterSummon()
+    {
+        var cmm = NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening ? NetworkManager.Singleton.CustomMessagingManager : null;
+        if (cmm == null || cmm == summonRegisteredOn) return;
+        summonRegisteredOn = cmm;
+        cmm.RegisterNamedMessageHandler(SummonRequestMsg, (sender, reader) =>
+        {
+            if (!NetworkManager.Singleton.IsServer) return;
+            reader.ReadValueSafe(out Vector3 pos);
+            reader.ReadValueSafe(out bool inFactory);
+            BroadcastSummon(sender, pos, inFactory);
+        });
+        cmm.RegisterNamedMessageHandler(SummonMsg, (_, reader) =>
+        {
+            reader.ReadValueSafe(out ulong summoner);
+            reader.ReadValueSafe(out Vector3 pos);
+            reader.ReadValueSafe(out bool inFactory);
+            OnSummoned(summoner, pos, inFactory);
+        });
+    }
+
+    private void RequestSummon()
+    {
+        var player = GameNetworkManager.Instance?.localPlayerController;
+        var nm = NetworkManager.Singleton;
+        if (player == null || nm == null || !nm.IsListening) return;
+        if (nm.IsServer)
+        {
+            BroadcastSummon(nm.LocalClientId, player.transform.position, player.isInsideFactory);
+            return;
+        }
+        using var w = new FastBufferWriter(32, Allocator.Temp);
+        w.WriteValueSafe(player.transform.position);
+        w.WriteValueSafe(player.isInsideFactory);
+        nm.CustomMessagingManager.SendNamedMessage(SummonRequestMsg, NetworkManager.ServerClientId, w);
+    }
+
+    private void BroadcastSummon(ulong summoner, Vector3 pos, bool inFactory)
+    {
+        var nm = NetworkManager.Singleton;
+        foreach (ulong id in nm.ConnectedClientsIds)
+        {
+            if (id == nm.LocalClientId) continue;
+            using var w = new FastBufferWriter(48, Allocator.Temp);
+            w.WriteValueSafe(summoner);
+            w.WriteValueSafe(pos);
+            w.WriteValueSafe(inFactory);
+            nm.CustomMessagingManager.SendNamedMessage(SummonMsg, id, w);
+        }
+        OnSummoned(summoner, pos, inFactory);
+    }
+
+    private void OnSummoned(ulong summoner, Vector3 pos, bool inFactory)
+    {
+        if (summoner == NetworkManager.Singleton.LocalClientId)
+        {
+            HUDManager.Instance?.DisplayTip("Debug", "Bringing everyone to you");
+            return;
+        }
+        StartCoroutine(TeleportTo(pos, inFactory));
+    }
+
+    private System.Collections.IEnumerator TeleportTo(Vector3 pos, bool inFactory)
+    {
+        var player = GameNetworkManager.Instance?.localPlayerController;
+        if (player == null || player.isPlayerDead) yield break;
+        // Use the real main entrance to swap inside/outside so lighting, audio and culling follow.
+        if (inFactory != player.isInsideFactory)
+        {
+            foreach (var door in FindObjectsOfType<EntranceTeleport>())
+            {
+                if (door.isEntranceToBuilding != player.isInsideFactory && door.entranceId == 0)
+                {
+                    door.TeleportPlayer();
+                    break;
+                }
+            }
+            yield return null;
+            yield return null;
+        }
+        Vector2 r = Random.insideUnitCircle.normalized * 1.2f;
+        player.TeleportPlayer(pos + new Vector3(r.x, 0.2f, r.y));
     }
 
     private static Vector3 Local(CatItem cat, Vector3 worldDir) => cat.transform.InverseTransformDirection(worldDir).normalized;
