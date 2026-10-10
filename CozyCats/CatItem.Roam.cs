@@ -251,7 +251,13 @@ public partial class CatItem
         // They went through an entrance. If we were close behind, pop through with them; otherwise we've lost them.
         if (t.isInsideFactory != isInFactory)
         {
-            if (lastFollowDist < FollowDoorRange) HopTo(t, "entrance");
+            // The main entrance flags the player as outside a moment before it moves them; the facility sits ~200 m
+            // below the surface, so wait until they're actually far away or we'd hop to where they just were.
+            if (lastFollowDist < FollowDoorRange)
+            {
+                if (Vector3.Distance(t.transform.position, transform.position) > 40f) HopTo(t, "entrance");
+                return;
+            }
             else
             {
                 followTarget = null;
@@ -349,15 +355,15 @@ public partial class CatItem
 
     private void HopTo(PlayerControllerB t, string reason)
     {
-#if DEBUG
-        Plugin.Log.LogInfo($"{CatName} hops to {t.playerUsername} ({reason})");
-#endif
         var sor = StartOfRound.Instance;
         Vector3 p = t.transform.position + FollowOffset(t) + Vector3.up * 0.5f;
         p = Physics.Raycast(p, Vector3.down, out var hit, 3f, sor.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore)
             ? hit.point : t.transform.position;
         Vector3 look = Vector3.ProjectOnPlane(t.transform.position - p, Vector3.up);
         float yaw = look.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(look).eulerAngles.y : transform.eulerAngles.y;
+#if DEBUG
+        Plugin.Log.LogInfo($"{CatName} hops to {t.playerUsername} ({reason}): from {transform.position} to {p}, player at {t.transform.position}");
+#endif
         lastFollowDist = 0f;
         netPose.Value = PoseSit;
         TeleportClientRpc(p, yaw, t.isInsideFactory);
