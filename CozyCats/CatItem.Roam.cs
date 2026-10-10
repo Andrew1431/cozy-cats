@@ -134,6 +134,8 @@ public partial class CatItem
         {
             if (!netTamed.Value) netTamed.Value = true;
             if (playerHeldBy != null) followTarget = playerHeldBy;
+            // Otherwise a cat grabbed mid-flee stays "alarmed" forever and never goes back to its sit/loaf loop.
+            mood = Mood.Calm;
             return;
         }
         if (isHeldByEnemy || netRescued.Value) return;
@@ -338,6 +340,7 @@ public partial class CatItem
             if (Mathf.Abs(hit.point.y - from.y) > 0.3f || Vector3.Distance(hit.point, from) < 1f) continue;
             if (Physics.Linecast(from + Vector3.up * 0.3f, hit.point + Vector3.up * 0.3f, sor.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore)) continue;
             netPose.Value = PoseSit;
+            poseTimer = Random.Range(15f, 30f);
             MoveClientRpc(new[] { from, hit.point }, FollowWalkSpeed, PoseWalk);
             return;
         }
