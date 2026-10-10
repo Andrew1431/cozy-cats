@@ -11,7 +11,7 @@ Cats are hiding in the facility. Find them, scoop them up, and bring them home t
   you're employed. They're lost when you're fired.
 - **Never your downfall**: monsters can't hear cats, can't pick them up, and cats never make noise that draws
   attention. They survive a crew wipe like any other non-scrap item.
-- One or two cats per moon at most, and some moons have none.
+- Every moon has at least one cat hiding in the facility, usually two.
 
 Everyone in the lobby needs the mod.
 
@@ -22,8 +22,8 @@ Everyone in the lobby needs the mod.
 | Section | Key | Default | What it does |
 |---|---|---|---|
 | Spawning | MaxCatsPerMoon | 2 | Most cats that can show up in one facility (0-5). |
-| Spawning | FirstCatChance | 0.6 | Chance that at least one cat is hiding in the facility. |
-| Spawning | ExtraCatChance | 0.25 | Chance for each additional cat after the first. |
+| Spawning | ChanceFirstCat | 1.0 | Chance that at least one cat is hiding in the facility. |
+| Spawning | ChanceExtraCat | 0.8 | Chance for each additional cat after the first. |
 | Visuals | ModelScale | 1.0 | Size multiplier for every cat. |
 | Cats | SpecialCats | see below | Your own named cats. |
 | Rewards | RescueBounty | 100 | Credits paid once per cat when it first reaches the ship (0-1000, 0 turns it off). |

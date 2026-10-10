@@ -1,4 +1,5 @@
 using BepInEx.Configuration;
+using HarmonyLib;
 
 namespace CozyCats;
 
@@ -16,9 +17,10 @@ internal class CatConfig
     {
         MaxCatsPerMoon = cfg.Bind("Spawning", "MaxCatsPerMoon", 2,
             new ConfigDescription("Most cats that can show up in one facility.", new AcceptableValueRange<int>(0, 5)));
-        FirstCatChance = cfg.Bind("Spawning", "FirstCatChance", 0.6f,
+        // Renamed in 1.2.0 so everyone picks up the new defaults instead of keeping the old values in their config.
+        FirstCatChance = cfg.Bind("Spawning", "ChanceFirstCat", 1.0f,
             new ConfigDescription("Chance (0-1) that at least one cat is hiding in the facility.", new AcceptableValueRange<float>(0f, 1f)));
-        SecondCatChance = cfg.Bind("Spawning", "ExtraCatChance", 0.25f,
+        SecondCatChance = cfg.Bind("Spawning", "ChanceExtraCat", 0.8f,
             new ConfigDescription("Chance (0-1) for each additional cat after the first.", new AcceptableValueRange<float>(0f, 1f)));
         ModelScale = cfg.Bind("Visuals", "ModelScale", 1.0f,
             new ConfigDescription("Size multiplier for cats. Requires restart.", new AcceptableValueRange<float>(0.5f, 2f)));
@@ -33,5 +35,11 @@ internal class CatConfig
                 new AcceptableValueRange<int>(0, 1000)));
         AmbientMeows = cfg.Bind("Sounds", "AmbientMeows", true,
             "Cats that are set down meow softly every few minutes. Monsters can never hear them.");
+
+        // Drop the pre-1.2.0 keys so they don't linger in the file looking like they still do something.
+        var orphans = Traverse.Create(cfg).Property("OrphanedEntries").GetValue<System.Collections.Generic.Dictionary<ConfigDefinition, string>>();
+        if (orphans != null && (orphans.Remove(new ConfigDefinition("Spawning", "FirstCatChance")) |
+                                orphans.Remove(new ConfigDefinition("Spawning", "ExtraCatChance"))))
+            cfg.Save();
     }
 }
