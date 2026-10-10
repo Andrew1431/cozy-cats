@@ -42,6 +42,11 @@ internal static class Patches
         box.valueText.text = $"Bounty: ${__state.cat.PendingBountyDisplay}";
     }
 
+    // Mines go off when an item lands on them. A cat wandering or fleeing across one must never do that.
+    [HarmonyPatch(typeof(Landmine), "OnTriggerEnter")]
+    [HarmonyPrefix]
+    private static bool CatsDontTriggerMines(Collider other) => other.GetComponent<CatItem>() == null;
+
     [HarmonyPatch(typeof(RoundManager), nameof(RoundManager.SpawnScrapInLevel))]
     [HarmonyPostfix]
     private static void SpawnCats(RoundManager __instance)

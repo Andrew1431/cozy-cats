@@ -4,15 +4,16 @@ using UnityEngine;
 
 namespace CozyCats;
 
-public class CatItem : GrabbableObject
+public partial class CatItem : GrabbableObject
 {
-    private const byte PoseIdle = 0, PoseSit = 1, PoseLoaf = 2, PoseHeld = 3;
+    private const byte PoseIdle = 0, PoseSit = 1, PoseLoaf = 2, PoseHeld = 3, PoseWalk = 4, PoseRun = 5;
 
     private static readonly int PoseHash = Animator.StringToHash("Pose");
     private static readonly int BlinkHash = Animator.StringToHash("Blink");
     private static readonly int TwitchLHash = Animator.StringToHash("TwitchL");
     private static readonly int TwitchRHash = Animator.StringToHash("TwitchR");
     private static readonly int MeowHash = Animator.StringToHash("Meow");
+    private static readonly int MoveSpeedHash = Animator.StringToHash("MoveSpeed");
 
     private static Shader litShader;
     private static Material pupilMat, pinkMat;
@@ -81,7 +82,11 @@ public class CatItem : GrabbableObject
             if (netSeed.Value == 0) netSeed.Value = pendingSeed != 0 ? pendingSeed : CatLooks.NewSeed();
             netIdentity.Value = new FixedString128Bytes(CatLooks.ResolveIdentity(netSeed.Value));
             // Only ship items are saved, so a loaded cat was already rescued.
-            if (loadedFromSave) netRescued.Value = true;
+            if (loadedFromSave)
+            {
+                netRescued.Value = true;
+                netTamed.Value = true;
+            }
         }
         netSeed.OnValueChanged += OnSeedChanged;
         netIdentity.OnValueChanged += OnIdentityChanged;
@@ -189,7 +194,10 @@ public class CatItem : GrabbableObject
         float dt = Time.deltaTime;
         meowCooldown -= dt;
 
-        if (IsServer && !isHeld && !isHeldByEnemy && reachedFloorTarget)
+        UpdateMovement(dt);
+        if (IsServer) UpdateBrain(dt);
+
+        if (IsServer && !isHeld && !isHeldByEnemy && reachedFloorTarget && !IsMoving && mood == Mood.Calm)
         {
             poseTimer -= dt;
             if (poseTimer <= 0f)
@@ -212,7 +220,8 @@ public class CatItem : GrabbableObject
         UpdatePurr(dt);
 
         if (animator == null) return;
-        animator.SetInteger(PoseHash, isHeld || isHeldByEnemy ? PoseHeld : netPose.Value);
+        animator.SetInteger(PoseHash, isHeld || isHeldByEnemy ? PoseHeld : IsMoving ? gait : netPose.Value);
+        if (IsMoving) animator.SetFloat(MoveSpeedHash, AnimSpeedFor(gait, moveSpeed));
 
         // Blinks and ear twitches are cosmetic, so each client rolls its own timing.
         blinkTimer -= dt;

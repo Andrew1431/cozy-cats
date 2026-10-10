@@ -16,7 +16,7 @@ internal class DebugKeys : MonoBehaviour
         var go = new GameObject("CozyCats.DebugKeys") { hideFlags = HideFlags.HideAndDontSave };
         DontDestroyOnLoad(go);
         go.AddComponent<DebugKeys>();
-        Plugin.Log.LogWarning("Debug keys: F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). While holding a cat: arrows move left/right/up/down, " +
+        Plugin.Log.LogWarning("Debug keys: F5 toggle god mode (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). While holding a cat: arrows move left/right/up/down, " +
                               "PgUp/PgDn move away/closer, I/K pitch, J/L yaw, U/O roll, hold Alt for fine steps, " +
                               "F9 print+copy hold pose, F10 reset hold pose.");
     }
@@ -26,6 +26,13 @@ internal class DebugKeys : MonoBehaviour
         var kb = Keyboard.current;
         if (kb == null) return;
         if (kb.f8Key.wasPressedThisFrame) SpawnCatInFront();
+        if (kb.f5Key.wasPressedThisFrame)
+        {
+            godMode = !godMode;
+            HUDManager.Instance?.DisplayTip("God mode", godMode ? "On" : "Off");
+        }
+        // The game's own switch: DamagePlayer and KillPlayer both check it before hurting the local player.
+        if (StartOfRound.Instance != null) StartOfRound.Instance.allowLocalPlayerDeath = !godMode;
         if (kb.f7Key.wasPressedThisFrame)
         {
             showMarkers = !showMarkers;
@@ -89,6 +96,7 @@ internal class DebugKeys : MonoBehaviour
     // ---- Cat finder: F7 markers + laser lines through walls, F6 teleport to the nearest cat ----
 
     private bool showMarkers;
+    private bool godMode = true;
     private float nextCatScan;
     private CatItem[] cats = new CatItem[0];
     private static Texture2D pixel;
@@ -188,7 +196,10 @@ internal class DebugKeys : MonoBehaviour
             yield return null;
         }
 
-        Vector3 dest = nearest.transform.position - nearest.transform.forward * 1.2f + Vector3.up * 0.2f;
+        // Random spot around the cat; if it lands you in a wall, just press F6 again.
+        Vector2 r = Random.insideUnitCircle.normalized * Random.Range(1.5f, 3f);
+        Vector3 dest = nearest.transform.position + new Vector3(r.x, 0.2f, r.y);
+        if (UnityEngine.AI.NavMesh.SamplePosition(dest, out var hit, 1.5f, UnityEngine.AI.NavMesh.AllAreas)) dest = hit.position + Vector3.up * 0.2f;
         player.TeleportPlayer(dest);
         Plugin.Log.LogInfo($"Teleported to {nearest.CatName} at {nearest.transform.position}");
     }

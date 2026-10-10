@@ -13,7 +13,7 @@ public static class BuildCat
     const string PrefabPath = "Assets/Cat/CatModel.prefab";
     const string BundleName = "cozycats";
 
-    static readonly string[] LoopingClips = { "Idle", "Sit", "Loaf", "Held" };
+    static readonly string[] LoopingClips = { "Idle", "Sit", "Loaf", "Held", "Walk", "Run" };
     static readonly string[] OverlayBones = { "Eye.L", "Eye.R", "Ear.L", "Ear.R", "Jaw" };
 
     [MenuItem("CozyCats/Build Bundle")]
@@ -91,22 +91,30 @@ public static class BuildCat
         AssetDatabase.DeleteAsset(ControllerPath);
         var ac = AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
         ac.AddParameter("Pose", AnimatorControllerParameterType.Int);
+        // Walk/Run playback speed, so the paws keep up with how fast the cat is actually moving.
+        ac.AddParameter(new AnimatorControllerParameter { name = "MoveSpeed", type = AnimatorControllerParameterType.Float, defaultFloat = 1f });
         ac.AddParameter("Blink", AnimatorControllerParameterType.Trigger);
         ac.AddParameter("TwitchL", AnimatorControllerParameterType.Trigger);
         ac.AddParameter("TwitchR", AnimatorControllerParameterType.Trigger);
         if (clips.ContainsKey("Meow")) ac.AddParameter("Meow", AnimatorControllerParameterType.Trigger);
 
         var baseSm = ac.layers[0].stateMachine;
-        string[] poses = { "Idle", "Sit", "Loaf", "Held" };
+        // Index = the Pose int CatItem sets.
+        string[] poses = { "Idle", "Sit", "Loaf", "Held", "Walk", "Run" };
         for (int i = 0; i < poses.Length; i++)
         {
             if (!clips.TryGetValue(poses[i], out var clip)) continue;
             var st = baseSm.AddState(poses[i]);
             st.motion = clip;
+            if (poses[i] == "Walk" || poses[i] == "Run")
+            {
+                st.speedParameter = "MoveSpeed";
+                st.speedParameterActive = true;
+            }
             if (poses[i] == "Loaf") baseSm.defaultState = st;
             var tr = baseSm.AddAnyStateTransition(st);
             tr.AddCondition(AnimatorConditionMode.Equals, i, "Pose");
-            tr.duration = poses[i] == "Held" ? 0.2f : 0.45f;
+            tr.duration = poses[i] == "Held" ? 0.2f : poses[i] == "Walk" || poses[i] == "Run" ? 0.15f : 0.45f;
             tr.hasExitTime = false;
             tr.canTransitionToSelf = false;
         }
