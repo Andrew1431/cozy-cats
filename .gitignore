@@ -15,3 +15,4 @@ unity/*/*.sln
 unity/*.log
 art/sound_candidates/*.mp3
 dist/
+unity/*/build.log
