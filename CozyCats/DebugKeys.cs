@@ -1,4 +1,5 @@
 #if DEBUG
+using System.Linq;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
@@ -17,7 +18,7 @@ internal class DebugKeys : MonoBehaviour
         var go = new GameObject("CozyCats.DebugKeys") { hideFlags = HideFlags.HideAndDontSave };
         DontDestroyOnLoad(go);
         go.AddComponent<DebugKeys>();
-        Plugin.Log.LogWarning("Debug keys: F3 ship cats into/out of the cat tree (host), F4 bring everyone to you, F5 toggle god mode + infinite stamina (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). Not holding a cat: U/J smallest size up/down, I/K largest size up/down. While holding a cat: arrows move left/right/up/down, " +
+        Plugin.Log.LogWarning("Debug keys: F2 nap spot editor, F3 ship cats onto/off furniture (host), F4 bring everyone to you, F5 toggle god mode + infinite stamina (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). Not holding a cat: U/J smallest size up/down, I/K largest size up/down. While holding a cat: arrows move left/right/up/down, " +
                               "PgUp/PgDn move away/closer, I/K pitch, J/L yaw, U/O roll, hold Alt for fine steps, " +
                               "F9 print+copy hold pose, F10 reset hold pose.");
     }
@@ -57,6 +58,7 @@ internal class DebugKeys : MonoBehaviour
 
         var player = GameNetworkManager.Instance?.localPlayerController;
         if (player == null || player.isTypingChat || player.inTerminalMenu) return;
+        if (PerchEditor.Tick(kb, player)) return;
         if (!(player.currentlyHeldObjectServer is CatItem cat))
         {
             SizeKeys(kb);
@@ -118,7 +120,6 @@ internal class DebugKeys : MonoBehaviour
 
     private void OnGUI()
     {
-        if (!showMarkers) return;
         var player = GameNetworkManager.Instance?.localPlayerController;
         if (player == null || player.gameplayCamera == null) return;
 
@@ -129,6 +130,8 @@ internal class DebugKeys : MonoBehaviour
             pixel.Apply();
             labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
         }
+        PerchEditor.OnGUI(player.gameplayCamera, labelStyle);
+        if (!showMarkers) return;
 
         var cam = player.gameplayCamera;
         var centre = new Vector2(Screen.width / 2f, Screen.height / 2f);
@@ -345,9 +348,9 @@ internal class DebugKeys : MonoBehaviour
             HUDManager.Instance.DisplayTip("CozyCats", "Only the host can send cats to the tree.");
             return;
         }
-        if (CatTree.Instance == null || !CatTree.Instance.IsOut)
+        if (!PerchHost.All.Any(h => h.IsOut))
         {
-            HUDManager.Instance.DisplayTip("CozyCats", "No cat tree out in the ship.");
+            HUDManager.Instance.DisplayTip("CozyCats", "No cat tree or nap furniture out in the ship.");
             return;
         }
         foreach (var cat in FindObjectsOfType<CatItem>()) cat.DevTree();

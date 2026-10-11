@@ -9,7 +9,7 @@ namespace CozyCats;
 // Ship furniture bought from the terminal and moved with [B] like the vanilla furniture. Cats living in the ship
 // wander over now and then and curl up on one of its spots (empties exported from Blender as Spot_<Name>_<Clip>).
 [HarmonyPatch]
-public class CatTree : MonoBehaviour
+public class CatTree : PerchHost
 {
 #if DEBUG
     public const int Price = 0;
@@ -21,19 +21,8 @@ public class CatTree : MonoBehaviour
 
     public static UnlockableItem Unlockable;
     public static GameObject Prefab;
-    public static CatTree Instance { get; private set; }
 
-    internal class Spot
-    {
-        public Transform Point;
-        public string Name;
-        public byte Pose;
-        // Host only.
-        public CatItem Occupant;
-    }
-
-    internal readonly List<Spot> Spots = new List<Spot>();
-    private PlaceableShipObject placeable;
+    public override string Label => "cat tree";
 
     private static Shader litShader;
     private static readonly Dictionary<string, Material> litMats = new Dictionary<string, Material>();
@@ -124,62 +113,8 @@ public class CatTree : MonoBehaviour
                 Plugin.Log.LogWarning($"Cat tree spot {t.name}: unknown clip {parts[2]}");
                 continue;
             }
-            Spots.Add(new Spot { Point = t, Name = parts[1], Pose = pose });
+            Spots.Add(new Spot { Point = t, Name = parts[1], Pose = pose, Host = this });
         }
-    }
-
-    private void OnEnable() => Instance = this;
-
-    private void OnDisable()
-    {
-        if (Instance == this) Instance = null;
-    }
-
-    // Stored furniture stays spawned, parked far below the map.
-    public bool IsOut => placeable != null && placeable.unlockableID >= 0
-                         && !StartOfRound.Instance.unlockablesList.unlockables[placeable.unlockableID].inStorage
-                         && StartOfRound.Instance.shipInnerRoomBounds.bounds.Contains(transform.position + Vector3.up);
-
-    // Where a cat facing the spot should sit: the cat's forward is the empty's Blender -Y (Unity local -Y).
-    internal static float SpotYaw(Spot s)
-    {
-        Vector3 f = Vector3.ProjectOnPlane(-s.Point.up, Vector3.up);
-        return f.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(f).eulerAngles.y : s.Point.eulerAngles.y;
-    }
-
-    internal Spot FreeSpot()
-    {
-        var free = Spots.Where(s => s.Occupant == null || !s.Occupant.Claims(s)).ToList();
-        return free.Count > 0 ? free[Random.Range(0, free.Count)] : null;
-    }
-
-    internal void Release(CatItem cat)
-    {
-        foreach (var s in Spots)
-            if (s.Occupant == cat) s.Occupant = null;
-    }
-
-    // A patch of open ship floor just off the tree's base, for walking up to it and hopping back down.
-    internal bool FloorBeside(Vector3 near, out Vector3 point)
-    {
-        var sor = StartOfRound.Instance;
-        var box = placeable.placeObjectCollider as BoxCollider;
-        float reach = Mathf.Max(box.size.x, box.size.z) * 0.5f + 0.45f;
-        Vector3 c = placeable.transform.position;
-        Vector3 toward = Vector3.ProjectOnPlane(near - c, Vector3.up);
-        float start = toward.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(toward).eulerAngles.y : Random.Range(0f, 360f);
-        for (int i = 0; i < 12; i++)
-        {
-            float yaw = start + (i % 2 == 0 ? 1 : -1) * (i + 1) / 2 * 30f;
-            Vector3 p = c + Quaternion.Euler(0f, yaw, 0f) * Vector3.forward * reach;
-            p.y = transform.position.y + 1f;
-            if (!Physics.Raycast(p, Vector3.down, out var hit, 1.6f, sor.collidersAndRoomMaskAndDefault, QueryTriggerInteraction.Ignore)) continue;
-            if (Mathf.Abs(hit.point.y - transform.position.y) > 0.2f || !sor.shipInnerRoomBounds.bounds.Contains(hit.point + Vector3.up * 0.3f)) continue;
-            point = hit.point;
-            return true;
-        }
-        point = default;
-        return false;
     }
 
     // Bundle materials target the built-in pipeline; swap in HDRP/Lit copies, keeping each colour.

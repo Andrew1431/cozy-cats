@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.2
+
+- Ship cats also nap on the game's own furniture: both bunks of the bunkbeds, the top of the file cabinet and the
+  top of the cupboard. Furniture that's packed away is left alone, and moving it with [B] takes the spots along.
+
 ## 2.1.1
 
 - Your named cats (`SpecialCats`, Strider and Peaches by default) are much easier to find: each one not already on

@@ -7,7 +7,8 @@ namespace CozyCats;
 public partial class CatItem : GrabbableObject
 {
     // Animator Pose index (BuildCat's clip order). Curl and Drape are cat tree naps.
-    private const byte PoseIdle = 0, PoseSit = 1, PoseLoaf = 2, PoseHeld = 3, PoseWalk = 4, PoseRun = 5, PoseCurl = 6, PoseDrape = 7;
+    private const byte PoseIdle = 0, PoseSit = 1, PoseLoaf = 2, PoseHeld = 3, PoseWalk = 4, PoseRun = 5, PoseDrape = 7;
+    internal const byte PoseCurl = 6;
 
     private static readonly int PoseHash = Animator.StringToHash("Pose");
     private static readonly int BlinkHash = Animator.StringToHash("Blink");

@@ -10,7 +10,8 @@ Cats are hiding in the facility. Find them, scoop them up, and bring them home t
 - **Cat tree**: buy one from the terminal for $50 (`buy cat tree`). It's furniture, so move it with [B]. Cats living on
   the ship wander over and nap in it: curled up in the hammock or the top perch, loafing in the cubby or sprawled
   across the ledge.
-- **Life aboard**: once home, cats potter about the ship on their own, in orbit too.
+- **Life aboard**: once home, cats potter about the ship on their own, in orbit too, and curl up for naps on the
+  bunkbeds, the file cabinet and the top of the cupboard.
 - **Cozy, not chaotic**: cats sit, loaf, idle, blink and twitch their ears. Pick one up and it rolls over in your arms
   with its paws in the air and purrs quietly.
 - **Meow on demand**: press LMB while holding a cat. Set down, they'll occasionally meow on their own.

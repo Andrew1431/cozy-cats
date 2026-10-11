@@ -1,23 +1,24 @@
+using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
 
 namespace CozyCats;
 
-// Life aboard: rescued cats potter about the ship, and if there's a cat tree they wander over now and then and nap on it.
+// Life aboard: rescued cats potter about the ship, and they wander over to the cat tree or other furniture now and then and nap on it.
 // The ship moves (landing, taking off), so everything here is sent in the ship's local space.
 public partial class CatItem
 {
     private const float TreeChance = 0.45f, ShipWanderMin = 1.5f, ShipWanderMax = 5f;
 
     // Host only.
-    private CatTree.Spot treeSpot, headingFor;
+    private PerchHost.Spot treeSpot, headingFor;
     private float shipTimer;
     private bool shipTimerSet;
 
-    internal bool IsOnSpot(CatTree.Spot s) => s != null && (transform.position - s.Point.position).sqrMagnitude < 0.2f * 0.2f;
+    internal bool IsOnSpot(PerchHost.Spot s) => s != null && (transform.position - s.Point.position).sqrMagnitude < 0.2f * 0.2f;
 
     // Sitting on it, or on the way over to it.
-    internal bool Claims(CatTree.Spot s) => (treeSpot == s && IsOnSpot(s)) || headingFor == s;
+    internal bool Claims(PerchHost.Spot s) => (treeSpot == s && IsOnSpot(s)) || headingFor == s;
 
     private bool InTree => treeSpot != null;
 
@@ -46,19 +47,18 @@ public partial class CatItem
         if (brainTimer > 0f) return;
         brainTimer = 0.5f;
 
-        var tree = CatTree.Instance;
-        bool treeOut = tree != null && tree.IsOut;
-
         if (treeSpot != null)
         {
-            // The tree was moved or packed away under us: hop down.
-            if (!treeOut || !IsOnSpot(treeSpot))
+            var host = treeSpot.Host;
+            bool hostOut = host != null && host.IsOut;
+            // The furniture was moved or packed away under us: hop down.
+            if (!hostOut || !IsOnSpot(treeSpot))
             {
                 LeaveTree();
-                if (treeOut) HopOffTree(tree);
+                if (hostOut) HopOffTree(host);
                 else DropToFloor();
             }
-            else if (shipTimer <= 0f) HopOffTree(tree);
+            else if (shipTimer <= 0f) HopOffTree(host);
             return;
         }
         if (IsMoving) return;
@@ -67,36 +67,39 @@ public partial class CatItem
         {
             var spot = headingFor;
             headingFor = null;
-            if (treeOut && tree.Spots.Contains(spot) && Vector3.Distance(transform.position, spot.Point.position) < 3f)
+            if (spot.Host != null && spot.Host.IsOut && spot.Host.Spots.Contains(spot) && Vector3.Distance(transform.position, spot.Point.position) < 3f)
                 ClimbInto(spot);
             return;
         }
         if (!reachedFloorTarget) return;
 
-        // Up on the tree but not on a spot (loaded from a save, or dropped there): settle onto one, or get down.
-        if (treeOut && transform.position.y > tree.transform.position.y + 0.35f
-            && Vector3.ProjectOnPlane(transform.position - tree.transform.position, Vector3.up).magnitude < 1.5f)
+        // Up on furniture but not on a spot (loaded from a save, or dropped there): settle onto one, or get down.
+        foreach (var host in PerchHost.All)
         {
-            var near = tree.Spots.Find(s => (s.Point.position - transform.position).sqrMagnitude < 0.4f * 0.4f
+            if (!host.IsOut) continue;
+            var b = host.Footprint;
+            b.Expand(new Vector3(0.3f, 0.6f, 0.3f));
+            if (!b.Contains(transform.position) || transform.position.y < host.Footprint.min.y + 0.35f) continue;
+            var near = host.Spots.Find(s => (s.Point.position - transform.position).sqrMagnitude < 0.4f * 0.4f
                                             && (s.Occupant == null || s.Occupant == this || !s.Occupant.Claims(s)));
             if (near != null) ClimbInto(near);
-            else HopOffTree(tree);
+            else HopOffTree(host);
             return;
         }
 
         if (shipTimer > 0f) return;
         shipTimer = Random.Range(25f, 60f);
+        bool anyFree = PerchHost.FreeSpots().Any();
 #if DEBUG
-        Plugin.Log.LogInfo($"{CatName} gets up (tree {(treeOut ? "out" : "not out")}), next in {shipTimer:0}s");
+        Plugin.Log.LogInfo($"{CatName} gets up ({(anyFree ? "free nap spots" : "no free nap spots")}), next in {shipTimer:0}s");
 #endif
-        if (treeOut && Random.value < TreeChance && GoToTree(tree)) return;
+        if (anyFree && Random.value < TreeChance && GoToSpot(PerchHost.RandomFreeSpot())) return;
         Wander();
     }
 
-    private bool GoToTree(CatTree tree)
+    private bool GoToSpot(PerchHost.Spot spot)
     {
-        var spot = tree.FreeSpot();
-        if (spot == null || !tree.FloorBeside(transform.position, out var foot)) return false;
+        if (spot == null || !spot.Host.FloorBeside(transform.position, out var foot)) return false;
         headingFor = spot;
         spot.Occupant = this;
         if (Vector3.Distance(foot, transform.position) < 0.5f) return true;
@@ -106,37 +109,38 @@ public partial class CatItem
         return false;
     }
 
-    private void ClimbInto(CatTree.Spot spot)
+    private void ClimbInto(PerchHost.Spot spot)
     {
         treeSpot = spot;
         spot.Occupant = this;
         netPose.Value = spot.Pose;
         shipTimer = Random.Range(60f, 180f);
-        ShipTeleport(spot.Point.position, CatTree.SpotYaw(spot));
+        ShipTeleport(spot.Point.position, PerchHost.SpotYaw(spot));
 #if DEBUG
-        Plugin.Log.LogInfo($"{CatName} climbs into the cat tree: {spot.Name}");
+        Plugin.Log.LogInfo($"{CatName} climbs onto the {spot.Host.Label}: {spot.Name}");
 #endif
     }
 
     private void LeaveTree()
     {
-        CatTree.Instance?.Release(this);
+        treeSpot?.Host?.Release(this);
+        headingFor?.Host?.Release(this);
         treeSpot = null;
         headingFor = null;
     }
 
-    private void HopOffTree(CatTree tree)
+    private void HopOffTree(PerchHost host)
     {
         LeaveTree();
         netPose.Value = PoseSit;
         poseTimer = Random.Range(15f, 30f);
         shipTimer = Random.Range(20f, 50f);
-        if (!tree.FloorBeside(transform.position, out var p))
+        if (!host.FloorBeside(transform.position, out var p))
         {
             DropToFloor();
             return;
         }
-        Vector3 away = Vector3.ProjectOnPlane(p - tree.transform.position, Vector3.up);
+        Vector3 away = Vector3.ProjectOnPlane(p - host.Footprint.center, Vector3.up);
         ShipTeleport(p, away.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(away).eulerAngles.y : transform.eulerAngles.y);
     }
 
@@ -234,19 +238,18 @@ public partial class CatItem
         shipTimer = Random.Range(1f, 4f);
     }
 
-    // F3: off the tree if on it, otherwise to the tree now (walking if there's a clear line, else straight up).
+    // F3: off the furniture if on it, otherwise to a free nap spot now (walking if there's a clear line, else straight up).
     internal void DevTree()
     {
-        var tree = CatTree.Instance;
-        if (!netRescued.Value || !isInShipRoom || isHeld || tree == null || !tree.IsOut) return;
+        if (!netRescued.Value || !isInShipRoom || isHeld) return;
         if (InTree)
         {
-            HopOffTree(tree);
+            HopOffTree(treeSpot.Host);
             return;
         }
-        if (GoToTree(tree)) return;
-        var spot = tree.FreeSpot();
-        if (spot != null) ClimbInto(spot);
+        var spot = PerchHost.RandomFreeSpot();
+        if (spot == null || GoToSpot(spot)) return;
+        ClimbInto(spot);
     }
 #endif
 }

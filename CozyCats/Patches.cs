@@ -16,6 +16,7 @@ internal static class Patches
     {
         CatRegistry.FixupFromGame(__instance);
         CatTree.FixupFromGame(__instance);
+        __instance.gameObject.AddComponent<FurniturePerch.Scanner>();
     }
 
     // The counter accepts any held item, scrap or not, so cats have to be turned away explicitly.
