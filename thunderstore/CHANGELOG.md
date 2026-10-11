@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1
+
+- Your named cats (`SpecialCats`, Strider and Peaches by default) are much easier to find: each one not already on
+  your ship has a 50% chance of hiding in the facility every landing, on top of the usual cats. Miss it and it tries
+  again next landing. New setting `[Cats] SpecialCatChance`.
+- There's only ever one of each named cat, and ordinary cats never get their names. Lose one from the ship and it
+  comes back into the running.
+
 ## 2.1.0
 
 **New: the cat tree!** Buy it from the terminal for $50 (`buy cat tree`, it's always in stock).

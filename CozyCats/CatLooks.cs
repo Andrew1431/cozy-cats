@@ -103,15 +103,42 @@ internal readonly struct CatLooks
     // Host only: pick the name from built-ins plus this host's special cats.
     public static string ResolveIdentity(int seed)
     {
-        var rng = new System.Random(seed);
-        rng.Next(Furs.Length);
-        rng.Next(Eyes.Length);
-        string name = namePool[rng.Next(namePool.Length)];
+        string name = PoolName(seed);
         var special = specials.FirstOrDefault(s => s.Name == name);
         return special != null ? special.Encode() : name;
     }
 
-    public static int NewSeed() => Random.Range(1, SeedMask + 1);
+    private static string PoolName(int seed)
+    {
+        var rng = new System.Random(seed);
+        rng.Next(Furs.Length);
+        rng.Next(Eyes.Length);
+        return namePool[rng.Next(namePool.Length)];
+    }
+
+    public static IEnumerable<string> SpecialNames => specials.Select(s => s.Name);
+
+    // An ordinary cat: never lands on a special name, so special cats only arrive through their own spawn roll.
+    public static int NewSeed()
+    {
+        for (int i = 0; i < 1000; i++)
+        {
+            int seed = Random.Range(1, SeedMask + 1);
+            if (specials.All(s => s.Name != PoolName(seed))) return seed;
+        }
+        return Random.Range(1, SeedMask + 1);
+    }
+
+    // Saves only keep the seed and the name is worked out from it, so a special cat gets a seed that maps to its name.
+    public static int SeedFor(string specialName)
+    {
+        for (int i = 0; i < 100000; i++)
+        {
+            int seed = Random.Range(1, SeedMask + 1);
+            if (PoolName(seed) == specialName) return seed;
+        }
+        return 0;
+    }
 
     // Format: "Name, Fur, Eyes[, Coat label]; ..." where colours are a preset name or #RRGGBB.
     public static void LoadSpecials(string config)

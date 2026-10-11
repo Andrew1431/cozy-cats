@@ -32,6 +32,7 @@ Everyone in the lobby needs the mod.
 | Spawning | CatChances | 1, 0.8 | Chance for each cat, rolled in order until one misses. `1, 1, 1` is always three cats; `1, 0.8, 0.6, 0.4` is up to four, each less likely. |
 | Visuals | ModelScale | 1.0 | Size multiplier for every cat. |
 | Cats | SpecialCats | see below | Your own named cats. |
+| Cats | SpecialCatChance | 0.5 | Chance, each landing, that each of your named cats not already on the ship is hiding in the facility. |
 | Rewards | RescueBounty | 100 | Credits paid once per cat when it first reaches the ship (0-1000, 0 turns it off). |
 | Sounds | AmbientMeows | true | Cats that are set down meow softly every few minutes. |
 
@@ -39,8 +40,10 @@ Spawning, bounties and special cats follow the host's config.
 
 ### Your own cats
 
-Add your own cats to `SpecialCats` and they'll show up just as often as any other name. Separate cats with `;` and
-fields with `,`:
+Add your own cats to `SpecialCats`. Each one has its own chance (`SpecialCatChance`, 50% by default) of hiding in the
+facility every time you land, on top of the usual cats, until it's living on your ship. If you don't find it, it tries
+again next landing; if it ever leaves the ship for good, it comes back into the running. There's only ever one of each,
+and ordinary cats never get their names. Separate cats with `;` and fields with `,`:
 
 ```
 Name, FurColour, EyeColour[, CoatLabel shown when scanned]

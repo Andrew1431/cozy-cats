@@ -13,6 +13,7 @@ internal class CatConfig
     public readonly ConfigEntry<float> ModelScale;
     public readonly ConfigEntry<bool> AmbientMeows;
     public readonly ConfigEntry<string> SpecialCats;
+    public readonly ConfigEntry<float> SpecialCatChance;
     public readonly ConfigEntry<int> RescueBounty;
 
     public CatConfig(ConfigFile cfg)
@@ -29,6 +30,10 @@ internal class CatConfig
             "Colours: #RRGGBB or a preset: Ginger, Black, White, Grey, Cream, Chocolate, Silver, Blue, Fawn, Peach, " +
             "Green, Yellow, Amber, Copper, Hazel, Olive.\n" +
             "Only the host's list matters in multiplayer. Strider and Peaches are the original two; keep them if you like.");
+        SpecialCatChance = cfg.Bind("Cats", "SpecialCatChance", 0.5f,
+            new ConfigDescription("Chance (0-1), per landing, that each special cat not already on your ship is hiding in the facility. " +
+                                  "If you don't bring it home it tries again next landing. Lose it from the ship and it comes back into the running.",
+                new AcceptableValueRange<float>(0f, 1f)));
         RescueBounty = cfg.Bind("Rewards", "RescueBounty", 100,
             new ConfigDescription("Credits paid to the crew, once per cat, the first time it's brought into the ship. 0 turns it off.",
                 new AcceptableValueRange<int>(0, 1000)));

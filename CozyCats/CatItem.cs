@@ -51,6 +51,9 @@ public partial class CatItem : GrabbableObject
     public Vector3 HeldPivot => new Vector3(0f, 0.2f * modelBaseScale.y * size, 0f);
     private bool visualsReady, hasMeowTrigger;
     private int pendingSeed;
+
+    // Host, before Spawn: a fixed seed (special cats).
+    internal void SetSeed(int seed) => pendingSeed = seed;
     private bool loadedFromSave;
 
     private float poseTimer, blinkTimer, twitchTimer, ambientMeowTimer, meowCooldown;
