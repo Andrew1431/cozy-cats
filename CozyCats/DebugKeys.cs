@@ -17,7 +17,7 @@ internal class DebugKeys : MonoBehaviour
         var go = new GameObject("CozyCats.DebugKeys") { hideFlags = HideFlags.HideAndDontSave };
         DontDestroyOnLoad(go);
         go.AddComponent<DebugKeys>();
-        Plugin.Log.LogWarning("Debug keys: F4 bring everyone to you, F5 toggle god mode + infinite stamina (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). Not holding a cat: U/J smallest size up/down, I/K largest size up/down. While holding a cat: arrows move left/right/up/down, " +
+        Plugin.Log.LogWarning("Debug keys: F3 ship cats into/out of the cat tree (host), F4 bring everyone to you, F5 toggle god mode + infinite stamina (on by default), F6 teleport to nearest cat, F7 toggle cat finder, F8 spawn cat (host). Not holding a cat: U/J smallest size up/down, I/K largest size up/down. While holding a cat: arrows move left/right/up/down, " +
                               "PgUp/PgDn move away/closer, I/K pitch, J/L yaw, U/O roll, hold Alt for fine steps, " +
                               "F9 print+copy hold pose, F10 reset hold pose.");
     }
@@ -27,6 +27,7 @@ internal class DebugKeys : MonoBehaviour
         var kb = Keyboard.current;
         if (kb == null) return;
         if (kb.f8Key.wasPressedThisFrame) SpawnCatInFront();
+        if (kb.f3Key.wasPressedThisFrame) CatsToTree();
         if (kb.f5Key.wasPressedThisFrame)
         {
             godMode = !godMode;
@@ -337,6 +338,21 @@ internal class DebugKeys : MonoBehaviour
             $"rot ({e.x:0},{e.y:0},{e.z:0})  shift ({s.x:0.00},{s.y:0.00},{s.z:0.00})");
     }
 
+    private static void CatsToTree()
+    {
+        if (!NetworkManager.Singleton.IsServer)
+        {
+            HUDManager.Instance.DisplayTip("CozyCats", "Only the host can send cats to the tree.");
+            return;
+        }
+        if (CatTree.Instance == null || !CatTree.Instance.IsOut)
+        {
+            HUDManager.Instance.DisplayTip("CozyCats", "No cat tree out in the ship.");
+            return;
+        }
+        foreach (var cat in FindObjectsOfType<CatItem>()) cat.DevTree();
+    }
+
     private static void SpawnCatInFront()
     {
         var player = GameNetworkManager.Instance?.localPlayerController;
@@ -361,6 +377,7 @@ internal class DebugKeys : MonoBehaviour
         cat.isInShipRoom = inShip;
         cat.isInFactory = player.isInsideFactory;
         go.GetComponent<NetworkObject>().Spawn();
+        if (inShip) go.GetComponent<CatItem>().DevMakeHome();
         Plugin.Log.LogInfo($"Debug cat spawned at {pos} (inShip={inShip})");
     }
 }

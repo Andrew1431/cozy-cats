@@ -7,6 +7,7 @@ namespace CozyCats;
 internal static class CatAssets
 {
     public static GameObject CatModel;
+    public static GameObject CatTree;
     public static AudioClip[] Meows = new AudioClip[0];
     public static AudioClip[] Purrs = new AudioClip[0];
 
@@ -17,10 +18,11 @@ internal static class CatAssets
         if (bundle == null) return false;
 
         CatModel = bundle.LoadAsset<GameObject>("CatModel");
+        CatTree = bundle.LoadAsset<GameObject>("CatTree");
         var clips = bundle.LoadAllAssets<AudioClip>();
         Meows = clips.Where(c => c.name.StartsWith("meow")).ToArray();
         Purrs = clips.Where(c => c.name.StartsWith("purr")).ToArray();
-        Plugin.Log.LogInfo($"Loaded cat model: {CatModel != null}, {Meows.Length} meows, {Purrs.Length} purrs");
+        Plugin.Log.LogInfo($"Loaded cat model: {CatModel != null}, cat tree: {CatTree != null}, {Meows.Length} meows, {Purrs.Length} purrs");
         return CatModel != null;
     }
 }

@@ -6,7 +6,7 @@
     <AssemblyName>CozyCats</AssemblyName>
     <RootNamespace>CozyCats</RootNamespace>
     <Product>CozyCats</Product>
-    <Version>2.0.1</Version>
+    <Version>2.1.0</Version>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DebugType>embedded</DebugType>
@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <Reference Include="$(ManagedDir)\Assembly-CSharp.dll" Private="false" />
+    <Reference Include="$(ManagedDir)\Assembly-CSharp-firstpass.dll" Private="false" />
     <Reference Include="$(ManagedDir)\Unity.Netcode.Runtime.dll" Private="false" />
     <Reference Include="$(ManagedDir)\Unity.InputSystem.dll" Private="false" />
     <Reference Include="$(ManagedDir)\Unity.TextMeshPro.dll" Private="false" />

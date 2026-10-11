@@ -7,6 +7,10 @@ Cats are hiding in the facility. Find them, scoop them up, and bring them home t
   doors and all the way back to the ship, where it finds a spot to settle in. Lead a whole parade if you like.
 - **Every cat is unique**: random fur and eye colours, a random size and a name you'll see when you scan them. Their eyes
   shine faintly in the dark.
+- **Cat tree**: buy one from the terminal for $50 (`buy cat tree`). It's furniture, so move it with [B]. Cats living on
+  the ship wander over and nap in it: curled up in the hammock or the top perch, loafing in the cubby or sprawled
+  across the ledge.
+- **Life aboard**: once home, cats potter about the ship on their own, in orbit too.
 - **Cozy, not chaotic**: cats sit, loaf, idle, blink and twitch their ears. Pick one up and it rolls over in your arms
   with its paws in the air and purrs quietly.
 - **Meow on demand**: press LMB while holding a cat. Set down, they'll occasionally meow on their own.

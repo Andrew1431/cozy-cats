@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.0
+
+**New: the cat tree!** Buy it from the terminal for $50 (`buy cat tree`, it's always in stock).
+
+- A big carpeted cat tree with a cubby to hide in, a hammock, a ledge and a lookout on top.
+- Move it with [B] like any other furniture, or pack it away with [X].
+- Cats that live on the ship wander over now and then and nap in it: curled up in the hammock or the top perch,
+  loafing in the cubby, sitting on the condo, or flopped across the ledge. Pick one up for a cuddle any time.
+- Cats now potter about the ship on their own, even in orbit, instead of staying wherever they were put down.
+- New nap poses: curled up asleep, and splayed out lounging.
+
 ## 2.0.1
 
 - Cats vary a lot more in size, from little ones to proper chonks. Existing cats keep their place in the range.

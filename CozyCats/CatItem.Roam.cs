@@ -37,6 +37,8 @@ public partial class CatItem
     private float stuckTimer;
 
     private Vector3[] path;
+    // Ship walks are in the ship's local space, since the ship can move under the cat.
+    private bool pathLocal;
     private int pathIndex;
     private float moveSpeed;
     private byte gait;
@@ -63,7 +65,7 @@ public partial class CatItem
         Vector3 pos = transform.position;
         while (step > 0f && pathIndex < path.Length)
         {
-            Vector3 target = path[pathIndex];
+            Vector3 target = pathLocal ? StartOfRound.Instance.elevatorTransform.TransformPoint(path[pathIndex]) : path[pathIndex];
             float d = Vector3.Distance(pos, target);
             if (IsSteep(target - pos))
             {
@@ -111,6 +113,7 @@ public partial class CatItem
         }
         // Corner 0 is the host's position; each client starts from wherever it has the cat, which is close enough.
         path = corners;
+        pathLocal = false;
         pathIndex = 1;
         moveSpeed = speed;
         gait = newGait;
@@ -136,9 +139,18 @@ public partial class CatItem
             if (playerHeldBy != null) followTarget = playerHeldBy;
             // Otherwise a cat grabbed mid-flee stays "alarmed" forever and never goes back to its sit/loaf loop.
             mood = Mood.Calm;
+            if (InTree || headingFor != null) LeaveTree();
+            // Tree naps only make sense on the tree; otherwise it lands splayed on the floor in the Drape pose.
+            if (netPose.Value == PoseCurl || netPose.Value == PoseDrape) netPose.Value = PoseSit;
             return;
         }
-        if (isHeldByEnemy || netRescued.Value) return;
+        if (isHeldByEnemy) return;
+        // Rescued cats are home for good: they only roam while they're in the ship.
+        if (netRescued.Value)
+        {
+            if (isInShipRoom) ShipLife(dt);
+            return;
+        }
         if (isInShipRoom && !IsMoving) return;
         if (!reachedFloorTarget && !IsMoving) return;
         var sor = StartOfRound.Instance;

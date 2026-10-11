@@ -10,7 +10,11 @@ internal static class Patches
 {
     [HarmonyPatch(typeof(StartOfRound), "Awake")]
     [HarmonyPostfix]
-    private static void AfterStartOfRoundAwake(StartOfRound __instance) => CatRegistry.FixupFromGame(__instance);
+    private static void AfterStartOfRoundAwake(StartOfRound __instance)
+    {
+        CatRegistry.FixupFromGame(__instance);
+        CatTree.FixupFromGame(__instance);
+    }
 
     // The counter accepts any held item, scrap or not, so cats have to be turned away explicitly.
     [HarmonyPatch(typeof(DepositItemsDesk), nameof(DepositItemsDesk.PlaceItemOnCounter))]

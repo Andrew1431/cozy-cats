@@ -6,7 +6,8 @@ namespace CozyCats;
 
 public partial class CatItem : GrabbableObject
 {
-    private const byte PoseIdle = 0, PoseSit = 1, PoseLoaf = 2, PoseHeld = 3, PoseWalk = 4, PoseRun = 5;
+    // Animator Pose index (BuildCat's clip order). Curl and Drape are cat tree naps.
+    private const byte PoseIdle = 0, PoseSit = 1, PoseLoaf = 2, PoseHeld = 3, PoseWalk = 4, PoseRun = 5, PoseCurl = 6, PoseDrape = 7;
 
     private static readonly int PoseHash = Animator.StringToHash("Pose");
     private static readonly int BlinkHash = Animator.StringToHash("Blink");
@@ -209,7 +210,7 @@ public partial class CatItem : GrabbableObject
         UpdateMovement(dt);
         if (IsServer) UpdateBrain(dt);
 
-        if (IsServer && !isHeld && !isHeldByEnemy && reachedFloorTarget && !IsMoving && mood == Mood.Calm)
+        if (IsServer && !isHeld && !isHeldByEnemy && reachedFloorTarget && !IsMoving && mood == Mood.Calm && !InTree)
         {
             poseTimer -= dt;
             if (poseTimer <= 0f)
@@ -236,7 +237,9 @@ public partial class CatItem : GrabbableObject
         if (IsMoving) animator.SetFloat(MoveSpeedHash, AnimSpeedFor(gait, moveSpeed));
 
         // Blinks and ear twitches are cosmetic, so each client rolls its own timing.
-        blinkTimer -= dt;
+        // Napping in the tree with eyes shut (or nearly): a blink would flash them open.
+        bool eyesShut = !isHeld && !IsMoving && (netPose.Value == PoseCurl || netPose.Value == PoseDrape);
+        if (!eyesShut) blinkTimer -= dt;
         if (blinkTimer <= 0f)
         {
             blinkTimer = Random.Range(2.5f, 7f);
@@ -376,7 +379,12 @@ public partial class CatItem : GrabbableObject
     public override void DiscardItem()
     {
         base.DiscardItem();
-        if (IsServer) poseTimer = Random.Range(1.5f, 4f);
+        if (IsServer)
+        {
+            poseTimer = Random.Range(1.5f, 4f);
+            shipTimer = Random.Range(20f, 45f);
+            shipTimerSet = true;
+        }
     }
 
     // Save int layout: bits 0-21 seed, bits 22-29 resting yaw in 2-degree steps.

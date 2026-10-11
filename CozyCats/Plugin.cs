@@ -30,6 +30,7 @@ public class Plugin : BaseUnityPlugin
         }
 
         CatRegistry.Register();
+        CatTree.Register();
         new Harmony(MyPluginInfo.PLUGIN_GUID).PatchAll();
 #if DEBUG
         DebugKeys.Install();

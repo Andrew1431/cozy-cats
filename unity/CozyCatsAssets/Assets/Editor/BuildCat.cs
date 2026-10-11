@@ -11,9 +11,11 @@ public static class BuildCat
     const string ControllerPath = "Assets/Cat/CatAnimator.controller";
     const string MaskPath = "Assets/Cat/OverlayMask.mask";
     const string PrefabPath = "Assets/Cat/CatModel.prefab";
+    const string TreeFbxPath = "Assets/CatTree/CatTree.fbx";
+    const string TreePrefabPath = "Assets/CatTree/CatTree.prefab";
     const string BundleName = "cozycats";
 
-    static readonly string[] LoopingClips = { "Idle", "Sit", "Loaf", "Held", "Walk", "Run" };
+    static readonly string[] LoopingClips = { "Idle", "Sit", "Loaf", "Held", "Walk", "Run", "Curl", "Drape" };
     static readonly string[] OverlayBones = { "Eye.L", "Eye.R", "Ear.L", "Ear.R", "Jaw" };
 
     [MenuItem("CozyCats/Build Bundle")]
@@ -29,6 +31,7 @@ public static class BuildCat
         var mask = BuildMask(model);
         var controller = BuildController(clips, mask);
         BuildPrefab(model, controller);
+        BuildTree();
         TagAudio();
 
         Directory.CreateDirectory("AssetBundles");
@@ -100,7 +103,7 @@ public static class BuildCat
 
         var baseSm = ac.layers[0].stateMachine;
         // Index = the Pose int CatItem sets.
-        string[] poses = { "Idle", "Sit", "Loaf", "Held", "Walk", "Run" };
+        string[] poses = { "Idle", "Sit", "Loaf", "Held", "Walk", "Run", "Curl", "Drape" };
         for (int i = 0; i < poses.Length; i++)
         {
             if (!clips.TryGetValue(poses[i], out var clip)) continue;
@@ -170,6 +173,31 @@ public static class BuildCat
         PrefabUtility.SaveAsPrefabAsset(go, PrefabPath);
         Object.DestroyImmediate(go);
         AssetImporter.GetAtPath(PrefabPath).assetBundleName = BundleName;
+    }
+
+    // Furniture components are game code, so the plugin adds them at runtime; this is just the mesh and the spot empties.
+    static void BuildTree()
+    {
+        var imp = (ModelImporter)AssetImporter.GetAtPath(TreeFbxPath);
+        imp.bakeAxisConversion = true;
+        imp.globalScale = 1f;
+        imp.useFileScale = true;
+        imp.importAnimation = false;
+        imp.animationType = ModelImporterAnimationType.None;
+        imp.importCameras = false;
+        imp.importLights = false;
+        // The plugin builds a MeshCollider and the build-mode ghost from it at runtime.
+        imp.isReadable = true;
+        imp.SaveAndReimport();
+
+        var model = AssetDatabase.LoadAssetAtPath<GameObject>(TreeFbxPath);
+        var go = (GameObject)PrefabUtility.InstantiatePrefab(model);
+        go.name = "CatTree";
+        PrefabUtility.SaveAsPrefabAsset(go, TreePrefabPath);
+        Object.DestroyImmediate(go);
+        AssetImporter.GetAtPath(TreePrefabPath).assetBundleName = BundleName;
+        foreach (var t in model.GetComponentsInChildren<Transform>())
+            Debug.Log($"[BuildCat] tree part {t.name} pos {t.localPosition} rot {t.localRotation.eulerAngles} fwd {t.forward}");
     }
 
     static void TagAudio()
